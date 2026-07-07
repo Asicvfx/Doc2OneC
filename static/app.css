@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --app-bg: #f6f7f9;
   --app-ink: #1f2937;
   --app-muted: #6b7280;
@@ -261,4 +261,35 @@ body {
 .validation-warning {
   background: #fef3c7;
   color: #92400e;
+}
+.processing-issue-panel {
+  border-color: #fecaca;
+  background: #fffafa;
+}
+
+.processing-issue-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.processing-issue-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 8px;
+  background: #dc2626;
+  color: #fff;
+}
+
+.processing-issue-detail {
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff;
+  color: #7f1d1d;
+  padding: 12px 14px;
+  overflow-wrap: anywhere;
 }

@@ -1,4 +1,4 @@
-﻿import json
+import json
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -12,6 +12,7 @@ from .services.export_status import EXPORT_READY_STATUSES, DocumentNotReadyForEx
 from .services.exporter import export_document_csv, export_document_json
 from .services.manual_review import apply_manual_review
 from .services.pipeline import process_document
+from .services.processing_status import get_processing_issue
 
 
 def document_list(request):
@@ -56,6 +57,7 @@ def document_detail(request, pk):
         "document": document,
         "can_mark_exported": document.status in EXPORT_READY_STATUSES,
         "next_step": _document_next_step(document),
+        "processing_issue": get_processing_issue(document),
         "normalized_json_pretty": json.dumps(
             document.normalized_json or {},
             ensure_ascii=False,
@@ -98,7 +100,8 @@ def process_document_view(request, pk):
     elif document.status == Document.Status.NEEDS_REVIEW:
         messages.warning(request, "Document processed, but it needs review.")
     else:
-        messages.error(request, "Processing failed.")
+        issue = get_processing_issue(document)
+        messages.error(request, issue.title if issue else "Processing failed.")
     return redirect("documents:detail", pk=document.pk)
 
 
@@ -164,5 +167,5 @@ def _document_next_step(document: Document) -> dict:
         "variant": "danger",
         "icon": "bi-exclamation-triangle",
         "title": "Processing failed",
-        "message": "Run processing again or review the logs for the failure details.",
+        "message": "Review the processing issue, then retry processing when ready.",
     }

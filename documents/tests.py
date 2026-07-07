@@ -11,6 +11,7 @@ from directories.models import Employee, WorkObject, WorkType
 from documents.models import Document
 from documents.services.ai_provider import AIProviderError, OpenAIProvider
 from documents.services.pipeline import process_document
+from documents.services.processing_status import get_processing_issue
 
 
 SAMPLE_TEXT = "Иванов Иван 2026-07-06 Объект №1 Электромонтажные работы 8 часов Монтаж кабеля"
@@ -115,6 +116,7 @@ class OpenAIProviderTests(TestCase):
                 "comment": None,
             },
         )
+@override_settings(AI_PROVIDER="mock")
 class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
     def test_process_document_extracts_normalized_ready_for_1c_payload(self):
         document = self.create_uploaded_document()
@@ -166,6 +168,27 @@ class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
         self.assertIn("Unsupported AI_PROVIDER", document.validation_errors[0]["message"])
 
 
+
+    def test_processing_issue_redacts_secret_like_values(self):
+        document = Document.objects.create(
+            title="Failed AI document",
+            status=Document.Status.FAILED,
+            validation_errors=[
+                {
+                    "field": "processing",
+                    "message": "OpenAI authentication failed: api_key=sk-test-secret",
+                }
+            ],
+        )
+
+        issue = get_processing_issue(document)
+
+        self.assertEqual(issue.title, "OpenAI authentication issue")
+        self.assertIn("[redacted]", issue.detail)
+        self.assertNotIn("sk-test-secret", issue.detail)
+
+
+@override_settings(AI_PROVIDER="mock")
 class DocumentApiTests(DemoDirectoryMixin, TestCase):
     def setUp(self):
         super().setUp()
@@ -305,6 +328,37 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
         ready_response = self.client.get(reverse("documents:detail", args=[document.id]))
         self.assertContains(ready_response, "Ready for 1C")
         self.assertContains(ready_response, "Mark as exported")
+
+
+    def test_detail_page_shows_processing_issue_and_retry_action(self):
+        document = self.create_uploaded_document()
+        document.status = Document.Status.FAILED
+        document.validation_errors = [
+            {
+                "field": "processing",
+                "message": "OpenAI extraction failed: request timed out after 30 seconds",
+            }
+        ]
+        document.save(update_fields=["status", "validation_errors", "updated_at"])
+
+        response = self.client.get(reverse("documents:detail", args=[document.id]))
+
+        self.assertContains(response, "OpenAI request timed out")
+        self.assertContains(response, "The AI provider did not respond")
+        self.assertContains(response, "Retry processing")
+        self.assertNotContains(response, "validation issue(s) need attention")
+        self.assertContains(response, "Validation will continue after processing succeeds.")
+
+    @override_settings(AI_PROVIDER="unknown")
+    def test_api_process_returns_processing_issue_for_failed_document(self):
+        document = self.create_uploaded_document()
+
+        response = self.client.post(f"/api/documents/{document.id}/process/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], Document.Status.FAILED)
+        self.assertEqual(response.data["processing_issue"]["title"], "Processing failed")
+        self.assertIn("Unsupported AI_PROVIDER", response.data["processing_issue"]["detail"])
 
     def test_api_document_list_is_paginated_and_filterable(self):
         ready = Document.objects.create(title="Ready Alpha", status=Document.Status.READY_FOR_1C, file_type=Document.FileType.TXT)

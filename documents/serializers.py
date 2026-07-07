@@ -1,4 +1,4 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 
 from rest_framework import serializers
 
@@ -116,6 +116,7 @@ class DocumentActionResultSerializer(serializers.Serializer):
     status = serializers.CharField()
     normalized_json = serializers.JSONField()
     validation_errors = serializers.JSONField()
+    processing_issue = serializers.JSONField(allow_null=True)
 
 
 class ErrorResponseSerializer(serializers.Serializer):

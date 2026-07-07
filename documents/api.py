@@ -1,4 +1,4 @@
-﻿from django.db.models import Q
+from django.db.models import Q
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
@@ -18,6 +18,7 @@ from .serializers import (
 from .services.export_status import DocumentNotReadyForExport, mark_document_exported
 from .services.manual_review import apply_manual_review
 from .services.pipeline import process_document
+from .services.processing_status import get_processing_issue_payload
 
 
 DOCUMENT_LIST_PARAMETERS = [
@@ -168,6 +169,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
             "status": document.status,
             "normalized_json": document.normalized_json,
             "validation_errors": document.validation_errors,
+            "processing_issue": get_processing_issue_payload(document),
         }
 
 
