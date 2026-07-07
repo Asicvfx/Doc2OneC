@@ -8,6 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(
     DEBUG=(bool, False),
     AI_TIMEOUT=(float, 30.0),
+    OCR_TIMEOUT=(float, 30.0),
+    OCR_MAX_PDF_PAGES=(int, 3),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -91,6 +93,10 @@ AI_PROVIDER = env("AI_PROVIDER", default="mock")
 AI_API_KEY = env("AI_API_KEY", default="")
 AI_MODEL = env("AI_MODEL", default="gpt-5.5")
 AI_TIMEOUT = env("AI_TIMEOUT")
+OCR_PROVIDER = env("OCR_PROVIDER", default="openai" if AI_PROVIDER == "openai" else "disabled")
+OCR_MODEL = env("OCR_MODEL", default=AI_MODEL)
+OCR_TIMEOUT = env("OCR_TIMEOUT")
+OCR_MAX_PDF_PAGES = env("OCR_MAX_PDF_PAGES")
 ONE_C_BASE_URL = env("ONE_C_BASE_URL", default="")
 ONE_C_USERNAME = env("ONE_C_USERNAME", default="")
 ONE_C_PASSWORD = env("ONE_C_PASSWORD", default="")

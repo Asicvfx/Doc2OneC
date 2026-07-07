@@ -25,15 +25,16 @@ This is intentionally a modular monolith: simple enough for an MVP, but organize
 - Vanilla JavaScript only through Bootstrap bundle
 - `openpyxl` for XLSX parsing
 - `pypdf` for text-based PDF extraction
+- `PyMuPDF` for rendering scanned PDF pages before OCR
 - `django-environ` for environment variables
 - `gunicorn` and `whitenoise` for deployment
 
 ## MVP Features
 
 - Dashboard with document status metrics
-- Document upload for TXT, CSV, XLSX, text-based PDF, and image OCR placeholder
+- Document upload for TXT, CSV, XLSX, text-based PDF, scanned PDF OCR, and image OCR
 - File type detection
-- Text/table/PDF parsing
+- Text/table/PDF/OCR parsing
 - Mock AI-style extraction of worklog fields
 - Normalized JSON output
 - Directory validation against employees, work objects, and work types
@@ -56,9 +57,10 @@ Apps:
 Service layer:
 
 - `documents/services/file_detector.py`: extension-based file type detection
-- `documents/services/file_parser.py`: TXT, CSV, XLSX, and text-based PDF parsing plus OCR placeholder
+- `documents/services/file_parser.py`: TXT, CSV, XLSX, text-based PDF parsing, scanned PDF rendering, and image OCR handoff
 - `documents/services/ai_extractor.py`: deterministic mock extraction
 - `documents/services/ai_provider.py`: environment-selected mock/OpenAI extraction provider
+- `documents/services/ocr.py`: OpenAI Vision OCR provider for images and scanned PDFs
 - `documents/services/normalizer.py`: stable field cleanup and hours normalization
 - `documents/services/validator.py`: required field and directory validation
 - `documents/services/exporter.py`: JSON/CSV response generation
@@ -76,6 +78,10 @@ AI_PROVIDER=mock
 AI_API_KEY=
 AI_MODEL=gpt-5.5
 AI_TIMEOUT=30
+OCR_PROVIDER=disabled
+OCR_MODEL=gpt-5.5
+OCR_TIMEOUT=30
+OCR_MAX_PDF_PAGES=3
 ```
 
 Available provider values:
@@ -90,6 +96,10 @@ AI_PROVIDER=openai
 AI_API_KEY=your-local-key
 AI_MODEL=gpt-5.5
 AI_TIMEOUT=30
+OCR_PROVIDER=openai
+OCR_MODEL=gpt-5.5
+OCR_TIMEOUT=30
+OCR_MAX_PDF_PAGES=3
 ```
 
 Do not paste API keys into chat or commit them to git. Automated tests use a fake OpenAI client, so they do not spend API credits.

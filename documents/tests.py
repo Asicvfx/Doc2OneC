@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from io import BytesIO
+from unittest.mock import patch
 
 from django.core.files import File
 from django.test import TestCase, override_settings
@@ -11,7 +12,8 @@ from rest_framework.test import APIClient
 from directories.models import Employee, WorkObject, WorkType
 from documents.models import Document
 from documents.services.ai_provider import AIProviderError, OpenAIProvider
-from documents.services.file_parser import PDF_NO_TEXT_MESSAGE, parse_document_file
+from documents.services.file_parser import parse_document_file
+from documents.services.ocr import OCR_DISABLED_MESSAGE, OpenAIOCRProvider
 from documents.services.pipeline import process_document
 from documents.services.processing_status import get_processing_issue
 
@@ -159,7 +161,36 @@ class OpenAIProviderTests(TestCase):
                 "comment": None,
             },
         )
-@override_settings(AI_PROVIDER="mock")
+
+    def test_openai_ocr_provider_extracts_text_from_image_bytes(self):
+        class FakeOCRResponse:
+            output_text = "Иванов Иван 2026-07-06 Объект №1"
+
+        class FakeResponsesResource:
+            def __init__(self):
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                return FakeOCRResponse()
+
+        class FakeClient:
+            def __init__(self):
+                self.responses = FakeResponsesResource()
+
+        client = FakeClient()
+        provider = OpenAIOCRProvider(api_key="test-key", model="test-model", client=client)
+
+        result = provider.extract_from_image_bytes(b"fake-image", mime_type="image/png")
+
+        self.assertIn("Иванов Иван", result)
+        request = client.responses.calls[0]
+        self.assertEqual(request["model"], "test-model")
+        content = request["input"][0]["content"]
+        self.assertEqual(content[1]["type"], "input_image")
+        self.assertTrue(content[1]["image_url"].startswith("data:image/png;base64,"))
+
+@override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled")
 class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
 
     def test_parse_pdf_extracts_selectable_text(self):
@@ -170,12 +201,22 @@ class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
         self.assertIn("Ivanov Ivan", extracted_text)
         self.assertIn("electrical work", extracted_text)
 
+
+    @override_settings(OCR_PROVIDER="openai")
+    def test_parse_scanned_pdf_uses_ocr_fallback(self):
+        document = self.create_pdf_document(text=None)
+
+        with patch("documents.services.file_parser.extract_text_from_pdf_page_image", return_value="OCR text from page"):
+            extracted_text = parse_document_file(document)
+
+        self.assertEqual(extracted_text, "OCR text from page")
+
     def test_parse_pdf_reports_when_ocr_is_required(self):
         document = self.create_pdf_document(text=None)
 
         extracted_text = parse_document_file(document)
 
-        self.assertEqual(extracted_text, PDF_NO_TEXT_MESSAGE)
+        self.assertEqual(extracted_text, OCR_DISABLED_MESSAGE)
 
     def test_process_document_extracts_normalized_ready_for_1c_payload(self):
         document = self.create_uploaded_document()
@@ -247,7 +288,7 @@ class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
         self.assertNotIn("sk-test-secret", issue.detail)
 
 
-@override_settings(AI_PROVIDER="mock")
+@override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled")
 class DocumentApiTests(DemoDirectoryMixin, TestCase):
     def setUp(self):
         super().setUp()
