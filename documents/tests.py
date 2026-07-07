@@ -116,3 +116,14 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
         self.assertEqual(file_property["type"], "string")
         self.assertEqual(file_property["format"], "binary")
 
+    def test_openapi_document_actions_do_not_require_request_body(self):
+        response = self.client.get("/api/schema/?format=json")
+
+        self.assertEqual(response.status_code, 200)
+        schema = json.loads(response.content)
+        paths = schema["paths"]
+
+        self.assertNotIn("requestBody", paths["/api/documents/{id}/process/"]["post"])
+        self.assertNotIn("requestBody", paths["/api/documents/{id}/mark-exported/"]["post"])
+
+

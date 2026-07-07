@@ -1,4 +1,4 @@
-﻿from drf_spectacular.utils import OpenApiResponse, extend_schema
+﻿from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -17,6 +17,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
     filterset_fields = ["status", "file_type"]
 
     @extend_schema(
+        request=None,
         responses={200: DocumentActionResultSerializer},
         description="Run the document processing pipeline synchronously for demo purposes.",
     )
@@ -36,6 +37,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
+        request=None,
         responses={200: DocumentActionResultSerializer},
         description="Mark a processed document as exported to 1C.",
     )
@@ -54,3 +56,4 @@ class DocumentViewSet(viewsets.ModelViewSet):
             }
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
+
