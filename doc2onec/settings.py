@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import environ
 
@@ -7,10 +7,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(
     DEBUG=(bool, False),
+    AI_TIMEOUT=(float, 30.0),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("SECRET_KEY", default="dev-only-doc2onec-secret-key")
+SECRET_KEY = env("SECRET_KEY", default="").strip() or "dev-only-doc2onec-secret-key"
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
@@ -59,8 +60,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "doc2onec.wsgi.application"
 
+database_url = env("DATABASE_URL", default="").strip()
 DATABASES = {
-    "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
+    "default": env.db_url_config(database_url or f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -87,6 +89,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AI_PROVIDER = env("AI_PROVIDER", default="mock")
 AI_API_KEY = env("AI_API_KEY", default="")
+AI_MODEL = env("AI_MODEL", default="gpt-5.5")
+AI_TIMEOUT = env("AI_TIMEOUT")
 ONE_C_BASE_URL = env("ONE_C_BASE_URL", default="")
 ONE_C_USERNAME = env("ONE_C_USERNAME", default="")
 ONE_C_PASSWORD = env("ONE_C_PASSWORD", default="")
@@ -112,5 +116,3 @@ SPECTACULAR_SETTINGS = {
         "displayOperationId": True,
     },
 }
-
-

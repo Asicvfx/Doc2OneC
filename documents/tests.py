@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 
 from directories.models import Employee, WorkObject, WorkType
 from documents.models import Document
+from documents.services.ai_provider import AIProviderError, OpenAIProvider
 from documents.services.pipeline import process_document
 
 
@@ -45,6 +46,75 @@ class DemoDirectoryMixin:
         return payload
 
 
+
+class FakeOpenAIResponse:
+    def __init__(self, output_text):
+        self.output_text = output_text
+
+
+class FakeResponsesResource:
+    def __init__(self, output_text):
+        self.output_text = output_text
+        self.calls = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return FakeOpenAIResponse(self.output_text)
+
+
+class FakeOpenAIClient:
+    def __init__(self, output_text):
+        self.responses = FakeResponsesResource(output_text)
+
+
+class OpenAIProviderTests(TestCase):
+    def test_openai_provider_extracts_structured_worklog_json(self):
+        client = FakeOpenAIClient(
+            json.dumps(
+                {
+                    "employee_name": "Иванов Иван",
+                    "date": "2026-07-06",
+                    "object": "Объект №1",
+                    "work_type": "Электромонтажные работы",
+                    "hours": "8",
+                    "comment": "Монтаж кабеля",
+                }
+            )
+        )
+        provider = OpenAIProvider(api_key="test-key", model="test-model", client=client)
+
+        result = provider.extract(SAMPLE_TEXT)
+
+        self.assertEqual(result["employee_name"], "Иванов Иван")
+        self.assertEqual(result["hours"], "8")
+        request = client.responses.calls[0]
+        self.assertEqual(request["model"], "test-model")
+        self.assertEqual(request["text"]["format"]["type"], "json_schema")
+        self.assertEqual(request["text"]["format"]["name"], "worklog_extraction")
+        self.assertTrue(request["text"]["format"]["strict"])
+
+    def test_openai_provider_rejects_invalid_json_response(self):
+        provider = OpenAIProvider(api_key="test-key", client=FakeOpenAIClient("not json"))
+
+        with self.assertRaisesMessage(AIProviderError, "invalid JSON"):
+            provider.extract(SAMPLE_TEXT)
+
+    def test_openai_provider_returns_empty_data_for_empty_text(self):
+        provider = OpenAIProvider(api_key="test-key", client=FakeOpenAIClient("{}"))
+
+        result = provider.extract("   ")
+
+        self.assertEqual(
+            result,
+            {
+                "employee_name": None,
+                "date": None,
+                "object": None,
+                "work_type": None,
+                "hours": None,
+                "comment": None,
+            },
+        )
 class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
     def test_process_document_extracts_normalized_ready_for_1c_payload(self):
         document = self.create_uploaded_document()

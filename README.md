@@ -57,7 +57,7 @@ Service layer:
 - `documents/services/file_detector.py`: extension-based file type detection
 - `documents/services/file_parser.py`: TXT, CSV, XLSX parsing plus PDF/OCR placeholders
 - `documents/services/ai_extractor.py`: deterministic mock extraction
-- `documents/services/ai_provider.py`: environment-selected AI provider adapter boundary
+- `documents/services/ai_provider.py`: environment-selected mock/OpenAI extraction provider
 - `documents/services/normalizer.py`: stable field cleanup and hours normalization
 - `documents/services/validator.py`: required field and directory validation
 - `documents/services/exporter.py`: JSON/CSV response generation
@@ -73,14 +73,25 @@ The local MVP uses a safe deterministic provider by default:
 ```env
 AI_PROVIDER=mock
 AI_API_KEY=
+AI_MODEL=gpt-5.5
+AI_TIMEOUT=30
 ```
 
 Available provider values:
 
-- `mock`: current working local extractor, no external API key required.
-- `openai`: adapter placeholder for the next integration stage. It fails clearly if selected without `AI_API_KEY`, and real API calls are not enabled yet.
+- `mock`: deterministic local extractor, no external API key required.
+- `openai`: real OpenAI Responses API extraction with structured JSON output.
 
-Do not paste API keys into chat or commit them to git. When real OpenAI integration is added later, put the key only in your local `.env` file.
+To test real AI extraction locally, keep your key only in `.env` and set:
+
+```env
+AI_PROVIDER=openai
+AI_API_KEY=your-local-key
+AI_MODEL=gpt-5.5
+AI_TIMEOUT=30
+```
+
+Do not paste API keys into chat or commit them to git. Automated tests use a fake OpenAI client, so they do not spend API credits.
 
 ## Local Setup
 
