@@ -1,4 +1,4 @@
-﻿# Doc2OneC
+# Doc2OneC
 
 Doc2OneC is a polished Django MVP for processing employee work documents and preparing stable structured data for 1C.
 
@@ -57,6 +57,7 @@ Service layer:
 - `documents/services/file_detector.py`: extension-based file type detection
 - `documents/services/file_parser.py`: TXT, CSV, XLSX parsing plus PDF/OCR placeholders
 - `documents/services/ai_extractor.py`: deterministic mock extraction
+- `documents/services/ai_provider.py`: environment-selected AI provider adapter boundary
 - `documents/services/normalizer.py`: stable field cleanup and hours normalization
 - `documents/services/validator.py`: required field and directory validation
 - `documents/services/exporter.py`: JSON/CSV response generation
@@ -64,6 +65,22 @@ Service layer:
 - `documents/services/pipeline.py`: orchestrates processing and writes logs
 
 Views are intentionally thin. Business logic lives in services so the same pipeline can later be called from Celery, an API endpoint, or a webhook.
+
+## AI Provider Configuration
+
+The local MVP uses a safe deterministic provider by default:
+
+```env
+AI_PROVIDER=mock
+AI_API_KEY=
+```
+
+Available provider values:
+
+- `mock`: current working local extractor, no external API key required.
+- `openai`: adapter placeholder for the next integration stage. It fails clearly if selected without `AI_API_KEY`, and real API calls are not enabled yet.
+
+Do not paste API keys into chat or commit them to git. When real OpenAI integration is added later, put the key only in your local `.env` file.
 
 ## Local Setup
 
@@ -198,7 +215,3 @@ Run `python manage.py collectstatic --noinput` during deployment.
 - S3 or MinIO file storage
 - Celery background processing for large files
 - Audit log and retention policy for production use
-
-
-
-

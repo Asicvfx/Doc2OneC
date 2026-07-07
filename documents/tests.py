@@ -1,9 +1,9 @@
-﻿import json
+import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from django.core.files import File
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -67,6 +67,33 @@ class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
         )
         self.assertEqual(document.validation_errors, [])
         self.assertGreaterEqual(document.logs.count(), 6)
+        self.assertTrue(
+            document.logs.filter(
+                step="extract",
+                message="AI extraction completed with provider: mock.",
+            ).exists()
+        )
+
+    @override_settings(AI_PROVIDER="openai", AI_API_KEY="")
+    def test_process_document_fails_clearly_when_openai_key_is_missing(self):
+        document = self.create_uploaded_document()
+
+        process_document(document.id)
+        document.refresh_from_db()
+
+        self.assertEqual(document.status, Document.Status.FAILED)
+        self.assertEqual(document.validation_errors[0]["field"], "processing")
+        self.assertIn("AI_API_KEY", document.validation_errors[0]["message"])
+
+    @override_settings(AI_PROVIDER="unknown")
+    def test_process_document_fails_clearly_for_unknown_ai_provider(self):
+        document = self.create_uploaded_document()
+
+        process_document(document.id)
+        document.refresh_from_db()
+
+        self.assertEqual(document.status, Document.Status.FAILED)
+        self.assertIn("Unsupported AI_PROVIDER", document.validation_errors[0]["message"])
 
 
 class DocumentApiTests(DemoDirectoryMixin, TestCase):

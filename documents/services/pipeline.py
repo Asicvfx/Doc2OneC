@@ -2,7 +2,7 @@ from django.db import transaction
 
 from documents.models import Document
 
-from .ai_extractor import extract_worklog_data
+from .ai_provider import get_ai_provider
 from .file_detector import detect_file_type
 from .file_parser import parse_document_file
 from .normalizer import normalize_worklog_data
@@ -26,8 +26,13 @@ def process_document(document_id: int) -> Document:
             document.extracted_text = extracted_text
             document.logs.create(step="parse", message="File content parsed.", level="info")
 
-            extracted_data = extract_worklog_data(extracted_text)
-            document.logs.create(step="extract", message="Mock AI extraction completed.", level="info")
+            ai_provider = get_ai_provider()
+            extracted_data = ai_provider.extract(extracted_text)
+            document.logs.create(
+                step="extract",
+                message=f"AI extraction completed with provider: {ai_provider.name}.",
+                level="info",
+            )
 
             normalized_data = normalize_worklog_data(extracted_data)
             document.normalized_json = normalized_data
