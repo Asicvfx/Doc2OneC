@@ -104,8 +104,10 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API for processing employee work documents and preparing structured data for 1C.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
     "SWAGGER_UI_SETTINGS": {
         "deepLinking": True,
         "displayOperationId": True,
     },
 }
+

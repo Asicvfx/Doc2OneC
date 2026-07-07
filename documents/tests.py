@@ -1,4 +1,5 @@
-﻿from pathlib import Path
+﻿import json
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from django.core.files import File
@@ -100,3 +101,18 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
 
         self.assertEqual(schema_response.status_code, 200)
         self.assertEqual(docs_response.status_code, 200)
+
+    def test_openapi_document_upload_uses_binary_file_field(self):
+        response = self.client.get("/api/schema/?format=json")
+
+        self.assertEqual(response.status_code, 200)
+        schema = json.loads(response.content)
+        upload_schema = schema["paths"]["/api/documents/"]["post"]["requestBody"]["content"][
+            "multipart/form-data"
+        ]["schema"]
+        component_name = upload_schema["$ref"].split("/")[-1]
+        file_property = schema["components"]["schemas"][component_name]["properties"]["file"]
+
+        self.assertEqual(file_property["type"], "string")
+        self.assertEqual(file_property["format"], "binary")
+
