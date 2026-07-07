@@ -1,4 +1,4 @@
-﻿from drf_spectacular.utils import extend_schema
+﻿from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from .models import Document
 from .serializers import DocumentActionResultSerializer, DocumentSerializer, WorklogReviewSerializer
+from .services.export_status import DocumentNotReadyForExport, mark_document_exported
 from .services.manual_review import apply_manual_review
 from .services.pipeline import process_document
 
@@ -45,15 +46,20 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         request=None,
-        responses={200: DocumentActionResultSerializer},
+        responses={
+            200: DocumentActionResultSerializer,
+            400: OpenApiResponse(description="Document is not ready for export."),
+        },
         description="Mark a processed document as exported to 1C.",
     )
     @action(detail=True, methods=["post"], url_path="mark-exported")
     def mark_exported(self, request, pk=None):
         document = self.get_object()
-        document.status = Document.Status.EXPORTED
-        document.save(update_fields=["status", "updated_at"])
-        document.logs.create(step="export", message="Document marked as exported via API.", level="info")
+        try:
+            mark_document_exported(document, source="API")
+        except DocumentNotReadyForExport as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        document.refresh_from_db()
         return Response(self._action_payload(document), status=status.HTTP_200_OK)
 
     def _action_payload(self, document: Document) -> dict:

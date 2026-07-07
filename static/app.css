@@ -199,3 +199,66 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.next-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.next-step-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--app-accent);
+}
+
+.next-step-info .next-step-icon,
+.next-step-success .next-step-icon {
+  background: var(--app-accent);
+}
+
+.next-step-warning .next-step-icon {
+  background: #b7791f;
+}
+
+.next-step-danger .next-step-icon {
+  background: #dc2626;
+}
+
+.next-step-done .next-step-icon {
+  background: #374151;
+}
+
+.next-step p {
+  color: var(--app-muted);
+}
+
+.validation-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-weight: 600;
+}
+
+.validation-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.validation-warning {
+  background: #fef3c7;
+  color: #92400e;
+}

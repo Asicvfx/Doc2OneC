@@ -175,3 +175,36 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
         self.assertNotIn("requestBody", paths["/api/documents/{id}/process/"]["post"])
         self.assertNotIn("requestBody", paths["/api/documents/{id}/mark-exported/"]["post"])
         self.assertIn("requestBody", paths["/api/documents/{id}/review/"]["post"])
+
+    def test_api_mark_exported_rejects_unready_document(self):
+        document = self.create_uploaded_document()
+
+        response = self.client.post(f"/api/documents/{document.id}/mark-exported/")
+        document.refresh_from_db()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(document.status, Document.Status.UPLOADED)
+        self.assertIn("ready for 1C", response.data["detail"])
+
+    def test_api_mark_exported_accepts_ready_document(self):
+        document = self.create_uploaded_document()
+        process_document(document.id)
+
+        response = self.client.post(f"/api/documents/{document.id}/mark-exported/")
+        document.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(document.status, Document.Status.EXPORTED)
+        self.assertTrue(document.logs.filter(step="export").exists())
+
+    def test_detail_page_guides_unready_and_ready_export_states(self):
+        document = self.create_uploaded_document()
+
+        unready_response = self.client.get(reverse("documents:detail", args=[document.id]))
+        self.assertContains(unready_response, "Run processing")
+        self.assertContains(unready_response, "Export requires ready status")
+
+        process_document(document.id)
+        ready_response = self.client.get(reverse("documents:detail", args=[document.id]))
+        self.assertContains(ready_response, "Ready for 1C")
+        self.assertContains(ready_response, "Mark as exported")
