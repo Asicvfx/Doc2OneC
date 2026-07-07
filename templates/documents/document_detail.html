@@ -35,6 +35,9 @@
             <i class="bi bi-play-circle me-1"></i>Run processing
           </button>
         </form>
+        <a class="btn btn-outline-primary" href="{% url 'documents:review' document.pk %}">
+          <i class="bi bi-pencil-square me-1"></i>Review / Edit data
+        </a>
         <a class="btn btn-outline-primary" href="{% url 'documents:export_json' document.pk %}">
           <i class="bi bi-filetype-json me-1"></i>Download JSON
         </a>
@@ -103,3 +106,4 @@
   </section>
 </div>
 {% endblock %}
+

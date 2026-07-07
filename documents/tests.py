@@ -32,6 +32,18 @@ class DemoDirectoryMixin:
         temp_path.unlink(missing_ok=True)
         return document
 
+    def valid_review_payload(self, **overrides):
+        payload = {
+            "employee_name": "Иванов Иван",
+            "date": "2026-07-06",
+            "object": "Объект №1",
+            "work_type": "Электромонтажные работы",
+            "hours": "7.5",
+            "comment": "Reviewed cable installation",
+        }
+        payload.update(overrides)
+        return payload
+
 
 class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
     def test_process_document_extracts_normalized_ready_for_1c_payload(self):
@@ -83,6 +95,43 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
         self.assertEqual(process_response.data["status"], Document.Status.READY_FOR_1C)
         self.assertEqual(process_response.data["normalized_json"]["employee_name"], "Иванов Иван")
 
+    def test_api_review_updates_normalized_data_and_revalidates(self):
+        document = self.create_uploaded_document()
+        process_document(document.id)
+
+        response = self.client.post(
+            f"/api/documents/{document.id}/review/",
+            self.valid_review_payload(hours="6", comment="Adjusted after review"),
+            format="multipart",
+        )
+        document.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], Document.Status.READY_FOR_1C)
+        self.assertEqual(document.normalized_json["hours"], 6)
+        self.assertEqual(document.normalized_json["comment"], "Adjusted after review")
+        self.assertEqual(document.validation_errors, [])
+        self.assertTrue(document.logs.filter(step="manual_review").exists())
+
+    def test_web_review_form_updates_normalized_data_and_revalidates(self):
+        document = self.create_uploaded_document()
+        process_document(document.id)
+
+        detail_response = self.client.get(reverse("documents:detail", args=[document.id]))
+        self.assertContains(detail_response, "Review / Edit data")
+
+        response = self.client.post(
+            reverse("documents:review", args=[document.id]),
+            self.valid_review_payload(hours="7.25", comment="Reviewed in web UI"),
+        )
+        document.refresh_from_db()
+
+        self.assertRedirects(response, reverse("documents:detail", args=[document.id]))
+        self.assertEqual(document.status, Document.Status.READY_FOR_1C)
+        self.assertEqual(document.normalized_json["hours"], 7.25)
+        self.assertEqual(document.normalized_json["comment"], "Reviewed in web UI")
+        self.assertEqual(document.validation_errors, [])
+
     def test_export_endpoints_return_downloadable_payloads(self):
         document = self.create_uploaded_document()
         process_document(document.id)
@@ -116,7 +165,7 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
         self.assertEqual(file_property["type"], "string")
         self.assertEqual(file_property["format"], "binary")
 
-    def test_openapi_document_actions_do_not_require_request_body(self):
+    def test_openapi_document_actions_have_expected_request_bodies(self):
         response = self.client.get("/api/schema/?format=json")
 
         self.assertEqual(response.status_code, 200)
@@ -125,5 +174,4 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
 
         self.assertNotIn("requestBody", paths["/api/documents/{id}/process/"]["post"])
         self.assertNotIn("requestBody", paths["/api/documents/{id}/mark-exported/"]["post"])
-
-
+        self.assertIn("requestBody", paths["/api/documents/{id}/review/"]["post"])

@@ -1,4 +1,5 @@
-﻿from rest_framework import serializers
+﻿from decimal import Decimal
+from rest_framework import serializers
 
 from .models import Document, ProcessingLog
 
@@ -61,8 +62,28 @@ class DocumentSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class WorklogReviewSerializer(serializers.Serializer):
+    employee_name = serializers.CharField(max_length=255)
+    date = serializers.DateField()
+    object = serializers.CharField(max_length=255)
+    work_type = serializers.CharField(max_length=255)
+    hours = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=Decimal("0.01"), max_value=Decimal("24"))
+    comment = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def to_review_data(self) -> dict:
+        return {
+            "employee_name": self.validated_data["employee_name"],
+            "date": self.validated_data["date"].isoformat(),
+            "object": self.validated_data["object"],
+            "work_type": self.validated_data["work_type"],
+            "hours": str(self.validated_data["hours"]),
+            "comment": self.validated_data.get("comment") or None,
+        }
+
+
 class DocumentActionResultSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     status = serializers.CharField()
     normalized_json = serializers.JSONField()
     validation_errors = serializers.JSONField()
+

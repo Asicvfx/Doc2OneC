@@ -5,7 +5,8 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from .models import Document
-from .serializers import DocumentActionResultSerializer, DocumentSerializer
+from .serializers import DocumentActionResultSerializer, DocumentSerializer, WorklogReviewSerializer
+from .services.manual_review import apply_manual_review
 from .services.pipeline import process_document
 
 
@@ -26,15 +27,21 @@ class DocumentViewSet(viewsets.ModelViewSet):
         document = self.get_object()
         process_document(document.id)
         document.refresh_from_db()
-        serializer = DocumentActionResultSerializer(
-            {
-                "id": document.id,
-                "status": document.status,
-                "normalized_json": document.normalized_json,
-                "validation_errors": document.validation_errors,
-            }
-        )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(self._action_payload(document), status=status.HTTP_200_OK)
+
+    @extend_schema(
+        request=WorklogReviewSerializer,
+        responses={200: DocumentActionResultSerializer},
+        description="Manually correct normalized worklog data and re-run backend validation.",
+    )
+    @action(detail=True, methods=["post"], url_path="review")
+    def review(self, request, pk=None):
+        document = self.get_object()
+        serializer = WorklogReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        apply_manual_review(document, serializer.to_review_data())
+        document.refresh_from_db()
+        return Response(self._action_payload(document), status=status.HTTP_200_OK)
 
     @extend_schema(
         request=None,
@@ -47,13 +54,12 @@ class DocumentViewSet(viewsets.ModelViewSet):
         document.status = Document.Status.EXPORTED
         document.save(update_fields=["status", "updated_at"])
         document.logs.create(step="export", message="Document marked as exported via API.", level="info")
-        serializer = DocumentActionResultSerializer(
-            {
-                "id": document.id,
-                "status": document.status,
-                "normalized_json": document.normalized_json,
-                "validation_errors": document.validation_errors,
-            }
-        )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(self._action_payload(document), status=status.HTTP_200_OK)
 
+    def _action_payload(self, document: Document) -> dict:
+        return {
+            "id": document.id,
+            "status": document.status,
+            "normalized_json": document.normalized_json,
+            "validation_errors": document.validation_errors,
+        }

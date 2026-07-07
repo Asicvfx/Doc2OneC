@@ -37,6 +37,7 @@ This is intentionally a modular monolith: simple enough for an MVP, but organize
 - Normalized JSON output
 - Directory validation against employees, work objects, and work types
 - Processing logs timeline
+- Manual review/edit workflow for normalized worklog data
 - JSON and CSV export
 - Mock 1C adapter class
 - Django admin for directories and documents
@@ -103,6 +104,7 @@ Useful document API actions:
 
 - `POST /api/documents/` with multipart `title` and `file`
 - `POST /api/documents/{id}/process/`
+- `POST /api/documents/{id}/review/`
 - `POST /api/documents/{id}/mark-exported/`
 
 Generate and validate the OpenAPI schema locally:
@@ -129,8 +131,9 @@ python manage.py test
 4. Open the document detail page.
 5. Click `Run processing`.
 6. Review extracted text, normalized JSON, validation status, and processing logs.
-7. Download JSON or CSV.
-8. Mark the document as exported.
+7. Use `Review / Edit data` if fields need manual correction.
+8. Download JSON or CSV.
+9. Mark the document as exported.
 
 ## Sample Data
 
@@ -195,4 +198,7 @@ Run `python manage.py collectstatic --noinput` during deployment.
 - S3 or MinIO file storage
 - Celery background processing for large files
 - Audit log and retention policy for production use
+
+
+
 
