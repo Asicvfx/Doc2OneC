@@ -1,22 +1,108 @@
-﻿from drf_spectacular.utils import OpenApiResponse, extend_schema
+﻿from django.db.models import Q
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from .models import Document
-from .serializers import DocumentActionResultSerializer, DocumentSerializer, WorklogReviewSerializer
+from .serializers import (
+    DocumentActionResultSerializer,
+    DocumentCreateSerializer,
+    DocumentDetailSerializer,
+    DocumentListSerializer,
+    ErrorResponseSerializer,
+    WorklogReviewSerializer,
+)
 from .services.export_status import DocumentNotReadyForExport, mark_document_exported
 from .services.manual_review import apply_manual_review
 from .services.pipeline import process_document
 
 
+DOCUMENT_LIST_PARAMETERS = [
+    OpenApiParameter(
+        name="status",
+        type=OpenApiTypes.STR,
+        location=OpenApiParameter.QUERY,
+        description="Filter by document status, e.g. ready_for_1c or needs_review.",
+    ),
+    OpenApiParameter(
+        name="file_type",
+        type=OpenApiTypes.STR,
+        location=OpenApiParameter.QUERY,
+        description="Filter by detected file type, e.g. txt, csv, xlsx, pdf, image, unknown.",
+    ),
+    OpenApiParameter(
+        name="search",
+        type=OpenApiTypes.STR,
+        location=OpenApiParameter.QUERY,
+        description="Search by title or extracted text.",
+    ),
+    OpenApiParameter(
+        name="ordering",
+        type=OpenApiTypes.STR,
+        location=OpenApiParameter.QUERY,
+        description="Ordering: created_at, -created_at, updated_at, -updated_at, title, -title.",
+    ),
+]
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=DOCUMENT_LIST_PARAMETERS,
+        responses={200: DocumentListSerializer},
+        description="List documents with pagination plus status, file type, search, and ordering query parameters.",
+    ),
+    create=extend_schema(
+        request=DocumentCreateSerializer,
+        responses={201: DocumentDetailSerializer},
+        examples=[
+            OpenApiExample(
+                "Multipart upload",
+                description="Use multipart/form-data with a title and a document file.",
+                value={"title": "Ivanov worklog 2026-07-06", "file": "sample_worklog.txt"},
+                request_only=True,
+            )
+        ],
+    ),
+    retrieve=extend_schema(responses={200: DocumentDetailSerializer}),
+)
 class DocumentViewSet(viewsets.ModelViewSet):
     queryset = Document.objects.prefetch_related("logs").all()
-    serializer_class = DocumentSerializer
     parser_classes = [MultiPartParser, FormParser]
-    search_fields = ["title", "extracted_text"]
-    filterset_fields = ["status", "file_type"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        status_value = self.request.query_params.get("status")
+        file_type = self.request.query_params.get("file_type")
+        search = self.request.query_params.get("search")
+        ordering = self.request.query_params.get("ordering")
+
+        if status_value in Document.Status.values:
+            queryset = queryset.filter(status=status_value)
+        if file_type in Document.FileType.values:
+            queryset = queryset.filter(file_type=file_type)
+        if search:
+            queryset = queryset.filter(title__icontains=search) | queryset.filter(extracted_text__icontains=search)
+        if ordering in {"created_at", "-created_at", "updated_at", "-updated_at", "title", "-title"}:
+            queryset = queryset.order_by(ordering)
+        return queryset
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return DocumentCreateSerializer
+        if self.action == "list":
+            return DocumentListSerializer
+        return DocumentDetailSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        document = serializer.save()
+        response_serializer = DocumentDetailSerializer(document, context=self.get_serializer_context())
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @extend_schema(
         request=None,
@@ -34,6 +120,20 @@ class DocumentViewSet(viewsets.ModelViewSet):
         request=WorklogReviewSerializer,
         responses={200: DocumentActionResultSerializer},
         description="Manually correct normalized worklog data and re-run backend validation.",
+        examples=[
+            OpenApiExample(
+                "Reviewed worklog",
+                value={
+                    "employee_name": "Иванов Иван",
+                    "date": "2026-07-06",
+                    "object": "Объект №1",
+                    "work_type": "Электромонтажные работы",
+                    "hours": "7.5",
+                    "comment": "Reviewed manually",
+                },
+                request_only=True,
+            )
+        ],
     )
     @action(detail=True, methods=["post"], url_path="review")
     def review(self, request, pk=None):
@@ -48,7 +148,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         request=None,
         responses={
             200: DocumentActionResultSerializer,
-            400: OpenApiResponse(description="Document is not ready for export."),
+            400: ErrorResponseSerializer,
         },
         description="Mark a processed document as exported to 1C.",
     )
@@ -69,3 +169,5 @@ class DocumentViewSet(viewsets.ModelViewSet):
             "normalized_json": document.normalized_json,
             "validation_errors": document.validation_errors,
         }
+
+

@@ -208,3 +208,46 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
         ready_response = self.client.get(reverse("documents:detail", args=[document.id]))
         self.assertContains(ready_response, "Ready for 1C")
         self.assertContains(ready_response, "Mark as exported")
+
+    def test_api_document_list_is_paginated_and_filterable(self):
+        ready = Document.objects.create(title="Ready Alpha", status=Document.Status.READY_FOR_1C, file_type=Document.FileType.TXT)
+        Document.objects.create(title="Needs Beta", status=Document.Status.NEEDS_REVIEW, file_type=Document.FileType.CSV)
+        Document.objects.create(title="Ready Gamma", status=Document.Status.READY_FOR_1C, file_type=Document.FileType.XLSX)
+
+        response = self.client.get("/api/documents/?status=ready_for_1c&search=Ready&ordering=title")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("count", response.data)
+        self.assertIn("results", response.data)
+        self.assertEqual(response.data["count"], 2)
+        self.assertEqual([item["title"] for item in response.data["results"]], ["Ready Alpha", "Ready Gamma"])
+        self.assertEqual(response.data["results"][0]["id"], ready.id)
+
+    def test_api_create_document_returns_detail_contract(self):
+        with NamedTemporaryFile(suffix=".txt", delete=False, mode="w", encoding="utf-8") as handle:
+            handle.write(SAMPLE_TEXT)
+            temp_path = Path(handle.name)
+
+        with temp_path.open("rb") as handle:
+            response = self.client.post(
+                "/api/documents/",
+                {"title": "Contract upload", "file": handle},
+                format="multipart",
+            )
+        temp_path.unlink(missing_ok=True)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["title"], "Contract upload")
+        self.assertEqual(response.data["status"], Document.Status.UPLOADED)
+        self.assertIn("file_url", response.data)
+        self.assertIn("logs", response.data)
+
+    def test_openapi_document_list_exposes_query_parameters(self):
+        response = self.client.get("/api/schema/?format=json")
+
+        self.assertEqual(response.status_code, 200)
+        schema = json.loads(response.content)
+        parameters = schema["paths"]["/api/documents/"]["get"].get("parameters", [])
+        names = {parameter["name"] for parameter in parameters}
+
+        self.assertTrue({"status", "file_type", "search", "ordering"}.issubset(names))

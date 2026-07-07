@@ -1,4 +1,5 @@
 ﻿from decimal import Decimal
+
 from rest_framework import serializers
 
 from .models import Document, ProcessingLog
@@ -11,7 +12,42 @@ class ProcessingLogSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class DocumentSerializer(serializers.ModelSerializer):
+class DocumentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Document
+        fields = ["id", "title", "file"]
+        read_only_fields = ["id"]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            validated_data["uploaded_by"] = request.user
+        return super().create(validated_data)
+
+
+class DocumentListSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    validation_error_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Document
+        fields = [
+            "id",
+            "title",
+            "file_type",
+            "status",
+            "status_display",
+            "validation_error_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_validation_error_count(self, obj) -> int:
+        return len(obj.validation_errors or [])
+
+
+class DocumentDetailSerializer(serializers.ModelSerializer):
     logs = ProcessingLogSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     file_url = serializers.SerializerMethodField()
@@ -55,12 +91,6 @@ class DocumentSerializer(serializers.ModelSerializer):
         url = obj.file.url
         return request.build_absolute_uri(url) if request else url
 
-    def create(self, validated_data):
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            validated_data["uploaded_by"] = request.user
-        return super().create(validated_data)
-
 
 class WorklogReviewSerializer(serializers.Serializer):
     employee_name = serializers.CharField(max_length=255)
@@ -87,3 +117,6 @@ class DocumentActionResultSerializer(serializers.Serializer):
     normalized_json = serializers.JSONField()
     validation_errors = serializers.JSONField()
 
+
+class ErrorResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
