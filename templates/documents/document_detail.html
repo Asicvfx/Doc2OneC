@@ -1,0 +1,105 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ document.title }} · Doc2OneC{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <div>
+    <h1 class="h3 mb-1">{{ document.title }}</h1>
+    <div class="d-flex gap-2 align-items-center">
+      {% include "partials/status_badge.html" with document=document %}
+      <span class="text-muted small">Created {{ document.created_at|date:"Y-m-d H:i" }}</span>
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'documents:list' %}">
+    <i class="bi bi-arrow-left me-1"></i>Documents
+  </a>
+</section>
+
+<div class="row g-4">
+  <aside class="col-lg-4">
+    <section class="content-panel mb-4">
+      <h2 class="h5 mb-3">Document info</h2>
+      <dl class="detail-list">
+        <dt>File type</dt>
+        <dd>{{ document.file_type|upper }}</dd>
+        <dt>Original file</dt>
+        <dd><a href="{{ document.file.url }}" target="_blank" rel="noopener">{{ document.file.name }}</a></dd>
+        <dt>Updated</dt>
+        <dd>{{ document.updated_at|date:"Y-m-d H:i" }}</dd>
+      </dl>
+      <div class="d-grid gap-2">
+        <form method="post" action="{% url 'documents:process' document.pk %}">
+          {% csrf_token %}
+          <button class="btn btn-primary w-100" type="submit">
+            <i class="bi bi-play-circle me-1"></i>Run processing
+          </button>
+        </form>
+        <a class="btn btn-outline-primary" href="{% url 'documents:export_json' document.pk %}">
+          <i class="bi bi-filetype-json me-1"></i>Download JSON
+        </a>
+        <a class="btn btn-outline-primary" href="{% url 'documents:export_csv' document.pk %}">
+          <i class="bi bi-filetype-csv me-1"></i>Download CSV
+        </a>
+        <form method="post" action="{% url 'documents:mark_exported' document.pk %}">
+          {% csrf_token %}
+          <button class="btn btn-outline-dark w-100" type="submit">
+            <i class="bi bi-check2-circle me-1"></i>Mark as exported
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <section class="content-panel">
+      <h2 class="h5 mb-3">Processing logs</h2>
+      {% if document.logs.all %}
+        <ol class="timeline">
+          {% for log in document.logs.all %}
+            <li class="timeline-item timeline-{{ log.level }}">
+              <div class="small text-muted">{{ log.created_at|date:"Y-m-d H:i:s" }}</div>
+              <div class="fw-semibold">{{ log.step }}</div>
+              <div>{{ log.message }}</div>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="text-muted mb-0">Processing has not been started yet.</p>
+      {% endif %}
+    </section>
+  </aside>
+
+  <section class="col-lg-8">
+    <div class="content-panel mb-4">
+      <h2 class="h5 mb-3">Extracted text</h2>
+      {% if document.extracted_text %}
+        <pre class="code-block">{{ document.extracted_text }}</pre>
+      {% else %}
+        <p class="text-muted mb-0">No extracted text yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="content-panel mb-4">
+      <h2 class="h5 mb-3">Normalized JSON</h2>
+      <pre class="code-block">{{ normalized_json_pretty }}</pre>
+    </div>
+
+    <div class="content-panel">
+      <h2 class="h5 mb-3">Validation</h2>
+      {% if document.validation_errors %}
+        <div class="list-group">
+          {% for error in document.validation_errors %}
+            <div class="list-group-item">
+              <span class="badge text-bg-warning me-2">{{ error.field }}</span>
+              {{ error.message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-success mb-0">
+          <i class="bi bi-shield-check me-1"></i>No validation errors.
+        </div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

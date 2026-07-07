@@ -1,0 +1,82 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Dashboard · Doc2OneC{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <div>
+    <p class="text-uppercase text-muted small fw-semibold mb-1">Doc2OneC</p>
+    <h1 class="h3 mb-2">Employee worklog processing for 1C</h1>
+    <p class="text-muted mb-0">AI-assisted document processing platform for preparing employee worklog data for 1C.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'documents:upload' %}">
+    <i class="bi bi-cloud-arrow-up me-1"></i>Upload document
+  </a>
+</section>
+
+<section class="row g-3 mb-4">
+  {% for label, value, color in stat_cards %}
+    <div class="col-6 col-md-4 col-xl">
+      <div class="metric-card {{ color }}">
+        <div class="text-muted small">{{ label }}</div>
+        <div class="metric-value">{{ value }}</div>
+      </div>
+    </div>
+  {% endfor %}
+</section>
+
+<section class="workflow-strip mb-4">
+  <span>Upload</span>
+  <i class="bi bi-arrow-right"></i>
+  <span>Parse/OCR</span>
+  <i class="bi bi-arrow-right"></i>
+  <span>AI extraction</span>
+  <i class="bi bi-arrow-right"></i>
+  <span>JSON</span>
+  <i class="bi bi-arrow-right"></i>
+  <span>Validation</span>
+  <i class="bi bi-arrow-right"></i>
+  <span>Export for 1C</span>
+</section>
+
+<section class="content-panel">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Recent documents</h2>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'documents:list' %}">View all</a>
+  </div>
+  {% if recent_documents %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for document in recent_documents %}
+            <tr>
+              <td class="fw-semibold">{{ document.title }}</td>
+              <td>{{ document.file_type|upper }}</td>
+              <td>{% include "partials/status_badge.html" with document=document %}</td>
+              <td>{{ document.created_at|date:"Y-m-d H:i" }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'documents:detail' document.pk %}">Open</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <i class="bi bi-file-earmark-arrow-up"></i>
+      <p class="mb-2 fw-semibold">No documents yet</p>
+      <a class="btn btn-primary btn-sm" href="{% url 'documents:upload' %}">Upload first document</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
