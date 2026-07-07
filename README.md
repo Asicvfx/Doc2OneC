@@ -24,15 +24,16 @@ This is intentionally a modular monolith: simple enough for an MVP, but organize
 - Bootstrap 5 CDN
 - Vanilla JavaScript only through Bootstrap bundle
 - `openpyxl` for XLSX parsing
+- `pypdf` for text-based PDF extraction
 - `django-environ` for environment variables
 - `gunicorn` and `whitenoise` for deployment
 
 ## MVP Features
 
 - Dashboard with document status metrics
-- Document upload for TXT, CSV, XLSX, PDF placeholder, and image OCR placeholder
+- Document upload for TXT, CSV, XLSX, text-based PDF, and image OCR placeholder
 - File type detection
-- Text/table parsing
+- Text/table/PDF parsing
 - Mock AI-style extraction of worklog fields
 - Normalized JSON output
 - Directory validation against employees, work objects, and work types
@@ -55,7 +56,7 @@ Apps:
 Service layer:
 
 - `documents/services/file_detector.py`: extension-based file type detection
-- `documents/services/file_parser.py`: TXT, CSV, XLSX parsing plus PDF/OCR placeholders
+- `documents/services/file_parser.py`: TXT, CSV, XLSX, and text-based PDF parsing plus OCR placeholder
 - `documents/services/ai_extractor.py`: deterministic mock extraction
 - `documents/services/ai_provider.py`: environment-selected mock/OpenAI extraction provider
 - `documents/services/normalizer.py`: stable field cleanup and hours normalization

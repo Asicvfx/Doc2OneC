@@ -2,11 +2,12 @@ import csv
 from io import TextIOWrapper
 
 from openpyxl import load_workbook
+from pypdf import PdfReader
 
 from documents.models import Document
 
 
-PDF_PLACEHOLDER = "PDF extraction placeholder. Real PDF parser can be added here."
+PDF_NO_TEXT_MESSAGE = "PDF text extraction found no selectable text. OCR is required for scanned PDFs."
 OCR_PLACEHOLDER = "OCR placeholder. Real OCR can be added here."
 
 
@@ -20,7 +21,7 @@ def parse_document_file(document: Document) -> str:
         if document.file_type == Document.FileType.XLSX:
             return _parse_xlsx(document.file)
         if document.file_type == Document.FileType.PDF:
-            return PDF_PLACEHOLDER
+            return _parse_pdf(document.file)
         if document.file_type == Document.FileType.IMAGE:
             return OCR_PLACEHOLDER
         return ""
@@ -67,3 +68,15 @@ def _parse_xlsx(file_obj) -> str:
         if pairs:
             parsed_rows.append("; ".join(pairs))
     return "\n".join(parsed_rows).strip()
+
+def _parse_pdf(file_obj) -> str:
+    reader = PdfReader(file_obj)
+    pages = []
+    for page in reader.pages:
+        page_text = page.extract_text() or ""
+        page_text = page_text.strip()
+        if page_text:
+            pages.append(page_text)
+
+    text = "\n\n".join(pages).strip()
+    return text or PDF_NO_TEXT_MESSAGE

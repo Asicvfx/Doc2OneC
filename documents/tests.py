@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from io import BytesIO
 
 from django.core.files import File
 from django.test import TestCase, override_settings
@@ -10,12 +11,48 @@ from rest_framework.test import APIClient
 from directories.models import Employee, WorkObject, WorkType
 from documents.models import Document
 from documents.services.ai_provider import AIProviderError, OpenAIProvider
+from documents.services.file_parser import PDF_NO_TEXT_MESSAGE, parse_document_file
 from documents.services.pipeline import process_document
 from documents.services.processing_status import get_processing_issue
 
 
 SAMPLE_TEXT = "Иванов Иван 2026-07-06 Объект №1 Электромонтажные работы 8 часов Монтаж кабеля"
+PDF_SAMPLE_TEXT = "Ivanov Ivan 2026-07-06 Object 1 electrical work 8 hours cable installation"
 
+
+
+
+def _build_minimal_pdf(text=None):
+    stream = ""
+    if text:
+        escaped_text = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+        stream = f"BT /F1 12 Tf 72 720 Td ({escaped_text}) Tj ET"
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        f"<< /Length {len(stream.encode('latin-1'))} >>\nstream\n{stream}\nendstream".encode("latin-1"),
+    ]
+
+    pdf = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for index, obj in enumerate(objects, start=1):
+        offsets.append(len(pdf))
+        pdf.extend(f"{index} 0 obj\n".encode("ascii"))
+        pdf.extend(obj)
+        pdf.extend(b"\nendobj\n")
+
+    xref_offset = len(pdf)
+    pdf.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    pdf.extend(b"0000000000 65535 f \n")
+    for offset in offsets:
+        pdf.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    pdf.extend(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode("ascii")
+    )
+    return bytes(pdf)
 
 class DemoDirectoryMixin:
     def setUp(self):
@@ -34,6 +71,12 @@ class DemoDirectoryMixin:
         temp_path.unlink(missing_ok=True)
         return document
 
+
+    def create_pdf_document(self, text=None, name="sample_worklog.pdf"):
+        buffer = BytesIO(_build_minimal_pdf(text))
+        document = Document.objects.create(title="PDF worklog", file_type=Document.FileType.PDF)
+        document.file.save(name, File(buffer), save=True)
+        return document
     def valid_review_payload(self, **overrides):
         payload = {
             "employee_name": "Иванов Иван",
@@ -118,6 +161,22 @@ class OpenAIProviderTests(TestCase):
         )
 @override_settings(AI_PROVIDER="mock")
 class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
+
+    def test_parse_pdf_extracts_selectable_text(self):
+        document = self.create_pdf_document(text=PDF_SAMPLE_TEXT)
+
+        extracted_text = parse_document_file(document)
+
+        self.assertIn("Ivanov Ivan", extracted_text)
+        self.assertIn("electrical work", extracted_text)
+
+    def test_parse_pdf_reports_when_ocr_is_required(self):
+        document = self.create_pdf_document(text=None)
+
+        extracted_text = parse_document_file(document)
+
+        self.assertEqual(extracted_text, PDF_NO_TEXT_MESSAGE)
+
     def test_process_document_extracts_normalized_ready_for_1c_payload(self):
         document = self.create_uploaded_document()
 
