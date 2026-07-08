@@ -13,6 +13,7 @@ class Document(models.Model):
 
     class Status(models.TextChoices):
         UPLOADED = "uploaded", "Uploaded"
+        QUEUED = "queued", "Queued"
         PROCESSING = "processing", "Processing"
         NEEDS_REVIEW = "needs_review", "Needs review"
         READY_FOR_1C = "ready_for_1c", "Ready for 1C"
@@ -59,6 +60,7 @@ class Document(models.Model):
     def status_badge_class(self):
         return {
             self.Status.UPLOADED: "secondary",
+            self.Status.QUEUED: "info",
             self.Status.PROCESSING: "primary",
             self.Status.NEEDS_REVIEW: "warning",
             self.Status.READY_FOR_1C: "success",

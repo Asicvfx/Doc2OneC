@@ -3,6 +3,7 @@
 {% block title %}{{ document.title }} · Doc2OneC{% endblock %}
 
 {% block content %}
+{% if processing_active %}<meta http-equiv="refresh" content="5">{% endif %}
 <section class="page-heading">
   <div>
     <h1 class="h3 mb-1">{{ document.title }}</h1>
@@ -40,13 +41,19 @@
       <div class="d-grid gap-2">
         <form method="post" action="{% url 'documents:process' document.pk %}">
           {% csrf_token %}
-          <button class="btn btn-primary w-100" type="submit">
-            {% if document.status == "failed" %}
-              <i class="bi bi-arrow-clockwise me-1"></i>Retry processing
-            {% else %}
-              <i class="bi bi-play-circle me-1"></i>Run processing
-            {% endif %}
-          </button>
+          {% if processing_active %}
+            <button class="btn btn-primary w-100" type="button" disabled>
+              <i class="bi bi-hourglass-split me-1"></i>Processing queued
+            </button>
+          {% else %}
+            <button class="btn btn-primary w-100" type="submit">
+              {% if document.status == "failed" %}
+                <i class="bi bi-arrow-clockwise me-1"></i>Retry processing
+              {% else %}
+                <i class="bi bi-play-circle me-1"></i>Run processing
+              {% endif %}
+            </button>
+          {% endif %}
         </form>
         <a class="btn btn-outline-primary" href="{% url 'documents:review' document.pk %}">
           <i class="bi bi-pencil-square me-1"></i>Review / Edit data

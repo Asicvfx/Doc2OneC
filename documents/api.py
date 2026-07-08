@@ -17,7 +17,7 @@ from .serializers import (
 )
 from .services.export_status import DocumentNotReadyForExport, mark_document_exported
 from .services.manual_review import apply_manual_review
-from .services.pipeline import process_document
+from .services.processing_jobs import ProcessingAlreadyActive, enqueue_document_processing
 from .services.processing_status import get_processing_issue_payload
 
 
@@ -107,15 +107,19 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         request=None,
-        responses={200: DocumentActionResultSerializer},
-        description="Run the document processing pipeline synchronously for demo purposes.",
+        responses={200: DocumentActionResultSerializer, 202: DocumentActionResultSerializer, 409: ErrorResponseSerializer},
+        description="Queue document processing. In sync mode the response contains the completed result; in thread mode it returns 202 while background processing runs.",
     )
     @action(detail=True, methods=["post"], url_path="process")
     def process(self, request, pk=None):
         document = self.get_object()
-        process_document(document.id)
+        try:
+            document = enqueue_document_processing(document.id, source="API")
+        except ProcessingAlreadyActive as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         document.refresh_from_db()
-        return Response(self._action_payload(document), status=status.HTTP_200_OK)
+        response_status = status.HTTP_202_ACCEPTED if document.status == Document.Status.QUEUED else status.HTTP_200_OK
+        return Response(self._action_payload(document), status=response_status)
 
     @extend_schema(
         request=WorklogReviewSerializer,

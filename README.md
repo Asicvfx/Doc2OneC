@@ -66,6 +66,7 @@ Service layer:
 - `documents/services/exporter.py`: JSON/CSV response generation
 - `documents/services/one_c_adapter.py`: future 1C integration boundary
 - `documents/services/pipeline.py`: orchestrates processing and writes logs
+- `documents/services/processing_jobs.py`: queues processing for the web/API layer and can later be swapped to Celery
 
 Views are intentionally thin. Business logic lives in services so the same pipeline can later be called from Celery, an API endpoint, or a webhook.
 
@@ -82,6 +83,7 @@ OCR_PROVIDER=disabled
 OCR_MODEL=gpt-5.5
 OCR_TIMEOUT=30
 OCR_MAX_PDF_PAGES=3
+PROCESSING_MODE=thread
 ```
 
 Available provider values:
@@ -100,6 +102,7 @@ OCR_PROVIDER=openai
 OCR_MODEL=gpt-5.5
 OCR_TIMEOUT=30
 OCR_MAX_PDF_PAGES=3
+PROCESSING_MODE=thread
 ```
 
 Do not paste API keys into chat or commit them to git. Automated tests use a fake OpenAI client, so they do not spend API credits.
@@ -169,10 +172,11 @@ python manage.py test
 3. Upload `sample_documents/sample_worklog.txt`, `.csv`, or generated `.xlsx`.
 4. Open the document detail page.
 5. Click `Run processing`.
-6. Review extracted text, normalized JSON, validation status, and processing logs.
-7. Use `Review / Edit data` if fields need manual correction.
-8. Download JSON or CSV.
-9. Mark the document as exported.
+6. If the document shows `Processing queued`, wait a few seconds; the detail page auto-refreshes while processing is active.
+7. Review extracted text, normalized JSON, validation status, and processing logs.
+8. Use `Review / Edit data` if fields need manual correction.
+9. Download JSON or CSV.
+10. Mark the document as exported.
 
 ## Sample Data
 
@@ -235,5 +239,5 @@ Run `python manage.py collectstatic --noinput` during deployment.
 - Role-based access control
 - API keys for machine-to-machine ingestion
 - S3 or MinIO file storage
-- Celery background processing for large files
+- Replace MVP thread processing with Celery/Redis for production-scale large files
 - Audit log and retention policy for production use

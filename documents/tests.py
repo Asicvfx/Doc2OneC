@@ -15,6 +15,7 @@ from documents.services.ai_provider import AIProviderError, OpenAIProvider
 from documents.services.file_parser import parse_document_file
 from documents.services.ocr import OCR_DISABLED_MESSAGE, OpenAIOCRProvider
 from documents.services.pipeline import process_document
+from documents.services.processing_jobs import ProcessingAlreadyActive, enqueue_document_processing
 from documents.services.processing_status import get_processing_issue
 
 
@@ -190,7 +191,7 @@ class OpenAIProviderTests(TestCase):
         self.assertEqual(content[1]["type"], "input_image")
         self.assertTrue(content[1]["image_url"].startswith("data:image/png;base64,"))
 
-@override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled")
+@override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled", PROCESSING_MODE="sync")
 class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
 
     def test_parse_pdf_extracts_selectable_text(self):
@@ -288,7 +289,56 @@ class DocumentPipelineTests(DemoDirectoryMixin, TestCase):
         self.assertNotIn("sk-test-secret", issue.detail)
 
 
+
 @override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled")
+class DocumentProcessingQueueTests(DemoDirectoryMixin, TestCase):
+    @override_settings(PROCESSING_MODE="thread")
+    def test_enqueue_document_processing_marks_document_queued(self):
+        document = self.create_uploaded_document()
+
+        with patch("documents.services.processing_jobs._start_background_thread") as start_thread:
+            with self.captureOnCommitCallbacks(execute=True):
+                queued_document = enqueue_document_processing(document.id, source="test")
+
+        queued_document.refresh_from_db()
+        self.assertEqual(queued_document.status, Document.Status.QUEUED)
+        self.assertTrue(queued_document.logs.filter(step="queue").exists())
+        start_thread.assert_called_once_with(document.id)
+
+    @override_settings(PROCESSING_MODE="thread")
+    def test_enqueue_document_processing_rejects_active_document(self):
+        document = self.create_uploaded_document()
+        document.status = Document.Status.QUEUED
+        document.save(update_fields=["status", "updated_at"])
+
+        with self.assertRaises(ProcessingAlreadyActive):
+            enqueue_document_processing(document.id, source="test")
+
+        self.assertTrue(document.logs.filter(step="queue", level="warning").exists())
+
+    @override_settings(PROCESSING_MODE="thread")
+    def test_api_process_returns_accepted_when_document_is_queued(self):
+        document = self.create_uploaded_document()
+        client = APIClient()
+
+        with patch("documents.services.processing_jobs._start_background_thread"):
+            with self.captureOnCommitCallbacks(execute=True):
+                response = client.post(f"/api/documents/{document.id}/process/")
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.data["status"], Document.Status.QUEUED)
+
+    def test_detail_page_disables_processing_action_while_queued(self):
+        document = self.create_uploaded_document()
+        document.status = Document.Status.QUEUED
+        document.save(update_fields=["status", "updated_at"])
+
+        response = self.client.get(reverse("documents:detail", args=[document.id]))
+
+        self.assertContains(response, "Processing queued")
+        self.assertContains(response, "http-equiv=\"refresh\"")
+
+@override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled", PROCESSING_MODE="sync")
 class DocumentApiTests(DemoDirectoryMixin, TestCase):
     def setUp(self):
         super().setUp()

@@ -11,7 +11,7 @@ from .models import Document
 from .services.export_status import EXPORT_READY_STATUSES, DocumentNotReadyForExport, mark_document_exported
 from .services.exporter import export_document_csv, export_document_json
 from .services.manual_review import apply_manual_review
-from .services.pipeline import process_document
+from .services.processing_jobs import ProcessingAlreadyActive, enqueue_document_processing
 from .services.processing_status import get_processing_issue
 
 
@@ -58,6 +58,7 @@ def document_detail(request, pk):
         "can_mark_exported": document.status in EXPORT_READY_STATUSES,
         "next_step": _document_next_step(document),
         "processing_issue": get_processing_issue(document),
+        "processing_active": document.status in {Document.Status.QUEUED, Document.Status.PROCESSING},
         "normalized_json_pretty": json.dumps(
             document.normalized_json or {},
             ensure_ascii=False,
@@ -93,9 +94,18 @@ def document_review(request, pk):
 @require_POST
 def process_document_view(request, pk):
     document = get_object_or_404(Document, pk=pk)
-    process_document(document.id)
+    try:
+        document = enqueue_document_processing(document.id, source="web")
+    except ProcessingAlreadyActive:
+        messages.info(request, "Processing is already queued or running.")
+        return redirect("documents:detail", pk=document.pk)
+
     document.refresh_from_db()
-    if document.status == Document.Status.READY_FOR_1C:
+    if document.status == Document.Status.QUEUED:
+        messages.success(request, "Processing queued. Refresh the page to follow progress.")
+    elif document.status == Document.Status.PROCESSING:
+        messages.info(request, "Processing is running.")
+    elif document.status == Document.Status.READY_FOR_1C:
         messages.success(request, "Document processed and ready for 1C export.")
     elif document.status == Document.Status.NEEDS_REVIEW:
         messages.warning(request, "Document processed, but it needs review.")
@@ -134,6 +144,13 @@ def _document_next_step(document: Document) -> dict:
             "icon": "bi-play-circle",
             "title": "Run processing",
             "message": "Parse the file, extract worklog data, and validate it before export.",
+        }
+    if document.status == Document.Status.QUEUED:
+        return {
+            "variant": "info",
+            "icon": "bi-clock-history",
+            "title": "Processing queued",
+            "message": "The document is waiting for background processing. Refresh this page to follow progress.",
         }
     if document.status == Document.Status.PROCESSING:
         return {

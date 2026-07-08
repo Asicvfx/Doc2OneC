@@ -97,6 +97,7 @@ OCR_PROVIDER = env("OCR_PROVIDER", default="openai" if AI_PROVIDER == "openai" e
 OCR_MODEL = env("OCR_MODEL", default=AI_MODEL)
 OCR_TIMEOUT = env("OCR_TIMEOUT")
 OCR_MAX_PDF_PAGES = env("OCR_MAX_PDF_PAGES")
+PROCESSING_MODE = env("PROCESSING_MODE", default="thread")
 ONE_C_BASE_URL = env("ONE_C_BASE_URL", default="")
 ONE_C_USERNAME = env("ONE_C_USERNAME", default="")
 ONE_C_PASSWORD = env("ONE_C_PASSWORD", default="")
