@@ -338,7 +338,52 @@ class DocumentProcessingQueueTests(DemoDirectoryMixin, TestCase):
         self.assertContains(response, "Processing queued")
         self.assertContains(response, "http-equiv=\"refresh\"")
 
-@override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled", PROCESSING_MODE="sync")
+
+@override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled", PROCESSING_MODE="thread", AUTO_PROCESS_ON_UPLOAD=True)
+class DocumentAutoUploadTests(DemoDirectoryMixin, TestCase):
+    def test_web_upload_queues_document_automatically(self):
+        with NamedTemporaryFile(suffix=".txt", delete=False, mode="w", encoding="utf-8") as handle:
+            handle.write(SAMPLE_TEXT)
+            temp_path = Path(handle.name)
+
+        with temp_path.open("rb") as handle:
+            with patch("documents.services.processing_jobs._start_background_thread") as start_thread:
+                with self.captureOnCommitCallbacks(execute=True):
+                    response = self.client.post(
+                        reverse("documents:upload"),
+                        {"title": "Auto web upload", "file": handle},
+                        follow=True,
+                    )
+        temp_path.unlink(missing_ok=True)
+
+        document = Document.objects.get(title="Auto web upload")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(document.status, Document.Status.QUEUED)
+        self.assertContains(response, "queued for processing automatically")
+        start_thread.assert_called_once_with(document.id)
+
+    def test_api_create_document_queues_when_auto_processing_enabled(self):
+        with NamedTemporaryFile(suffix=".txt", delete=False, mode="w", encoding="utf-8") as handle:
+            handle.write(SAMPLE_TEXT)
+            temp_path = Path(handle.name)
+
+        with temp_path.open("rb") as handle:
+            with patch("documents.services.processing_jobs._start_background_thread") as start_thread:
+                with self.captureOnCommitCallbacks(execute=True):
+                    response = self.client.post(
+                        "/api/documents/",
+                        {"title": "Auto API upload", "file": handle},
+                        format="multipart",
+                    )
+        temp_path.unlink(missing_ok=True)
+
+        document = Document.objects.get(title="Auto API upload")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["status"], Document.Status.QUEUED)
+        self.assertEqual(document.status, Document.Status.QUEUED)
+        start_thread.assert_called_once_with(document.id)
+
+@override_settings(AI_PROVIDER="mock", OCR_PROVIDER="disabled", PROCESSING_MODE="sync", AUTO_PROCESS_ON_UPLOAD=False)
 class DocumentApiTests(DemoDirectoryMixin, TestCase):
     def setUp(self):
         super().setUp()

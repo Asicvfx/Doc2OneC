@@ -17,7 +17,7 @@ from .serializers import (
 )
 from .services.export_status import DocumentNotReadyForExport, mark_document_exported
 from .services.manual_review import apply_manual_review
-from .services.processing_jobs import ProcessingAlreadyActive, enqueue_document_processing
+from .services.processing_jobs import ProcessingAlreadyActive, enqueue_document_processing, maybe_enqueue_document_processing
 from .services.processing_status import get_processing_issue_payload
 
 
@@ -101,6 +101,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         document = serializer.save()
+        document = maybe_enqueue_document_processing(document, source="API upload")
+        document.refresh_from_db()
         response_serializer = DocumentDetailSerializer(document, context=self.get_serializer_context())
         headers = self.get_success_headers(response_serializer.data)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)

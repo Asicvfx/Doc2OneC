@@ -1,5 +1,6 @@
 import json
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -11,7 +12,7 @@ from .models import Document
 from .services.export_status import EXPORT_READY_STATUSES, DocumentNotReadyForExport, mark_document_exported
 from .services.exporter import export_document_csv, export_document_json
 from .services.manual_review import apply_manual_review
-from .services.processing_jobs import ProcessingAlreadyActive, enqueue_document_processing
+from .services.processing_jobs import ProcessingAlreadyActive, enqueue_document_processing, maybe_enqueue_document_processing
 from .services.processing_status import get_processing_issue
 
 
@@ -44,11 +45,24 @@ def document_upload(request):
             if request.user.is_authenticated:
                 document.uploaded_by = request.user
             document.save()
-            messages.success(request, "Document uploaded. You can run processing now.")
+            document = maybe_enqueue_document_processing(document, source="web upload")
+            document.refresh_from_db()
+            if settings.AUTO_PROCESS_ON_UPLOAD and document.status == Document.Status.QUEUED:
+                messages.success(request, "Document uploaded and queued for processing automatically.")
+            elif settings.AUTO_PROCESS_ON_UPLOAD and document.status == Document.Status.PROCESSING:
+                messages.info(request, "Document uploaded and processing started.")
+            elif settings.AUTO_PROCESS_ON_UPLOAD and document.status == Document.Status.READY_FOR_1C:
+                messages.success(request, "Document uploaded and processed automatically.")
+            elif settings.AUTO_PROCESS_ON_UPLOAD and document.status == Document.Status.NEEDS_REVIEW:
+                messages.warning(request, "Document uploaded and processed automatically, but it needs review.")
+            elif settings.AUTO_PROCESS_ON_UPLOAD and document.status == Document.Status.FAILED:
+                messages.error(request, "Document uploaded, but automatic processing failed.")
+            else:
+                messages.success(request, "Document uploaded. You can run processing now.")
             return redirect("documents:detail", pk=document.pk)
     else:
         form = DocumentUploadForm()
-    return render(request, "documents/document_upload.html", {"form": form})
+    return render(request, "documents/document_upload.html", {"form": form, "auto_process_on_upload": settings.AUTO_PROCESS_ON_UPLOAD})
 
 
 def document_detail(request, pk):

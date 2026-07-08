@@ -15,6 +15,12 @@ class ProcessingAlreadyActive(Exception):
     pass
 
 
+def maybe_enqueue_document_processing(document: Document, source: str = "upload") -> Document:
+    if not settings.AUTO_PROCESS_ON_UPLOAD:
+        return document
+    return enqueue_document_processing(document.id, source=source)
+
+
 def enqueue_document_processing(document_id: int, source: str = "web") -> Document:
     document = Document.objects.get(id=document_id)
     if document.status in ACTIVE_PROCESSING_STATUSES:

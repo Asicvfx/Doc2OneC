@@ -70,6 +70,8 @@ Service layer:
 
 Views are intentionally thin. Business logic lives in services so the same pipeline can later be called from Celery, an API endpoint, or a webhook.
 
+Uploads can auto-start processing through `AUTO_PROCESS_ON_UPLOAD=true`, while the manual `Run processing` action remains available for retries and controlled demos.
+
 ## AI Provider Configuration
 
 The local MVP uses a safe deterministic provider by default:
@@ -171,8 +173,8 @@ python manage.py test
 2. Open `/documents/upload/`.
 3. Upload `sample_documents/sample_worklog.txt`, `.csv`, or generated `.xlsx`.
 4. Open the document detail page.
-5. Click `Run processing`.
-6. If the document shows `Processing queued`, wait a few seconds; the detail page auto-refreshes while processing is active.
+5. The document is queued automatically after upload when `AUTO_PROCESS_ON_UPLOAD=true`.
+6. If the detail page shows `Processing queued`, wait a few seconds; it auto-refreshes while processing is active.
 7. Review extracted text, normalized JSON, validation status, and processing logs.
 8. Use `Review / Edit data` if fields need manual correction.
 9. Download JSON or CSV.
