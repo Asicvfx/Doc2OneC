@@ -1,8 +1,9 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Dashboard · Doc2OneC{% endblock %}
+{% block title %}Dashboard - Doc2OneC{% endblock %}
 
 {% block content %}
+{% if has_active_processing %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
 <section class="page-heading">
   <div>
     <p class="text-uppercase text-muted small fw-semibold mb-1">Doc2OneC</p>
@@ -24,6 +25,16 @@
     </div>
   {% endfor %}
 </section>
+
+{% if has_active_processing %}
+  <section class="live-status-banner mb-4">
+    <div>
+      <div class="live-status-title">Currently processing {{ active_processing_count }} document{{ active_processing_count|pluralize }}</div>
+      <p class="mb-0">This dashboard refreshes automatically every {{ refresh_seconds }} seconds while queued or running documents are still active.</p>
+    </div>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'documents:list' %}?status=queued">Watch queue</a>
+  </section>
+{% endif %}
 
 <section class="workflow-strip mb-4">
   <span>Upload</span>

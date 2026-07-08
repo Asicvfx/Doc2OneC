@@ -1,8 +1,9 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Documents · Doc2OneC{% endblock %}
+{% block title %}Documents - Doc2OneC{% endblock %}
 
 {% block content %}
+{% if has_active_processing %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
 <section class="page-heading">
   <div>
     <h1 class="h3 mb-1">Documents</h1>
@@ -12,6 +13,16 @@
     <i class="bi bi-cloud-arrow-up me-1"></i>Upload document
   </a>
 </section>
+
+{% if has_active_processing %}
+  <section class="live-status-banner mb-4">
+    <div>
+      <div class="live-status-title">Processing watch: {{ active_processing_count }} active document{{ active_processing_count|pluralize }}</div>
+      <p class="mb-0">This list refreshes automatically every {{ refresh_seconds }} seconds while the current results still contain queued or running documents.</p>
+    </div>
+    <a class="btn btn-outline-primary btn-sm" href="?status=queued">Queued only</a>
+  </section>
+{% endif %}
 
 <section class="content-panel mb-4">
   <form class="row g-2 align-items-end" method="get">

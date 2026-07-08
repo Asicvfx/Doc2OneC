@@ -293,3 +293,34 @@ body {
   padding: 12px 14px;
   overflow-wrap: anywhere;
 }
+
+.live-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.live-status-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.live-status-banner p {
+  color: #1d4ed8;
+}
+@media (max-width: 767.98px) {
+  .live-status-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .live-status-banner .btn {
+    width: 100%;
+  }
+}

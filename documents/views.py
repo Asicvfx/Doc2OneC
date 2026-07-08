@@ -12,8 +12,16 @@ from .models import Document
 from .services.export_status import EXPORT_READY_STATUSES, DocumentNotReadyForExport, mark_document_exported
 from .services.exporter import export_document_csv, export_document_json
 from .services.manual_review import apply_manual_review
-from .services.processing_jobs import ProcessingAlreadyActive, enqueue_document_processing, maybe_enqueue_document_processing
+from .services.processing_jobs import (
+    ACTIVE_PROCESSING_STATUSES,
+    ProcessingAlreadyActive,
+    enqueue_document_processing,
+    maybe_enqueue_document_processing,
+)
 from .services.processing_status import get_processing_issue
+
+
+REFRESH_SECONDS = 5
 
 
 def document_list(request):
@@ -26,6 +34,7 @@ def document_list(request):
     if status:
         documents = documents.filter(status=status)
 
+    active_processing_count = documents.filter(status__in=ACTIVE_PROCESSING_STATUSES).count()
     paginator = Paginator(documents, 12)
     page = paginator.get_page(request.GET.get("page"))
     context = {
@@ -33,6 +42,9 @@ def document_list(request):
         "query": query,
         "selected_status": status,
         "status_choices": Document.Status.choices,
+        "active_processing_count": active_processing_count,
+        "has_active_processing": active_processing_count > 0,
+        "refresh_seconds": REFRESH_SECONDS,
     }
     return render(request, "documents/document_list.html", context)
 
@@ -72,7 +84,7 @@ def document_detail(request, pk):
         "can_mark_exported": document.status in EXPORT_READY_STATUSES,
         "next_step": _document_next_step(document),
         "processing_issue": get_processing_issue(document),
-        "processing_active": document.status in {Document.Status.QUEUED, Document.Status.PROCESSING},
+        "processing_active": document.status in ACTIVE_PROCESSING_STATUSES,
         "normalized_json_pretty": json.dumps(
             document.normalized_json or {},
             ensure_ascii=False,

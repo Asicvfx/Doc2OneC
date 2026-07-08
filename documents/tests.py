@@ -597,3 +597,28 @@ class DocumentApiTests(DemoDirectoryMixin, TestCase):
         names = {parameter["name"] for parameter in parameters}
 
         self.assertTrue({"status", "file_type", "search", "ordering"}.issubset(names))
+
+
+class DocumentTrackingUxTests(DemoDirectoryMixin, TestCase):
+    def test_dashboard_auto_refreshes_when_processing_is_active(self):
+        Document.objects.create(title="Queued watch", status=Document.Status.QUEUED, file_type=Document.FileType.TXT)
+        Document.objects.create(title="Running watch", status=Document.Status.PROCESSING, file_type=Document.FileType.CSV)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Currently processing 2 documents")
+        self.assertContains(response, "http-equiv=\"refresh\"")
+        self.assertContains(response, "Queued")
+
+    def test_document_list_auto_refreshes_only_for_active_results(self):
+        Document.objects.create(title="Queued watch", status=Document.Status.QUEUED, file_type=Document.FileType.TXT)
+        Document.objects.create(title="Ready watch", status=Document.Status.READY_FOR_1C, file_type=Document.FileType.CSV)
+
+        active_response = self.client.get(reverse("documents:list"))
+        ready_response = self.client.get(reverse("documents:list"), {"status": Document.Status.READY_FOR_1C})
+
+        self.assertContains(active_response, "Processing watch: 1 active document")
+        self.assertContains(active_response, "http-equiv=\"refresh\"")
+        self.assertContains(ready_response, "Ready watch")
+        self.assertNotContains(ready_response, "http-equiv=\"refresh\"")
