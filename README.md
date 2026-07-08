@@ -1,91 +1,94 @@
 # Doc2OneC
 
-Doc2OneC is a Django MVP for processing employee worklog documents and preparing stable structured data for 1C.
+Doc2OneC is a Django demo platform for processing employee worklog documents and preparing stable structured data for 1C.
 
-Companies often receive daily work reports in TXT, CSV, XLSX, PDF, scanned PDF, image, or free-form text form. The same work event can be written many different ways, while 1C expects predictable fields such as employee, date, object, work type, hours, and comment.
+It accepts messy source files such as TXT, CSV, XLSX, PDF, scanned PDF, and images, extracts worklog fields, validates them against directories, and sends the operator through review before export.
 
-## Solution
+## What the demo shows
 
-The platform demonstrates the full internal workflow:
+The product flow is:
 
-Upload document -> detect file type -> parse/OCR -> AI extraction -> normalized JSON -> backend validation -> status tracking -> manual review if needed -> JSON/CSV export -> future 1C adapter boundary.
+Upload -> detect file type -> parse or OCR -> AI extraction -> normalize JSON -> validate -> review if needed -> export JSON or CSV -> mark exported.
 
-The codebase is a modular monolith: small enough for an MVP, but structured so real OCR, LLM extraction, human review, background workers, and 1C integration can evolve without a rewrite.
+This repository is a modular monolith. The codebase is still MVP-sized, but the service boundaries are already separated so OCR, OpenAI extraction, Celery workers, S3 storage, and 1C integration can evolve without a rewrite.
 
-## Tech Stack
+## Tech stack
 
-- Python 3.12 target runtime
+- Python 3.12
 - Django 5
 - Django REST Framework
-- drf-spectacular for OpenAPI/Swagger docs
+- drf-spectacular for OpenAPI and Swagger
 - SQLite for local demo
-- PostgreSQL-ready via `DATABASE_URL`
-- Django templates + Bootstrap 5
+- PostgreSQL via `DATABASE_URL`
+- Django templates and Bootstrap 5
 - `openpyxl` for XLSX parsing
-- `pypdf` for text-based PDF extraction
+- `pypdf` for text PDFs
 - `PyMuPDF` for scanned PDF rendering before OCR
-- `openai` for optional AI extraction and OCR
-- `celery[redis]` for production-ready background processing
-- `gunicorn` + `whitenoise` for deployment
+- `openai` for optional extraction and OCR
+- `celery[redis]` for production-style background processing
+- `gunicorn` and `whitenoise` for deployment
 
-## MVP Features
+## Main features
 
-- Dashboard with live processing visibility
-- Document upload for TXT, CSV, XLSX, PDF, PNG, JPG, JPEG
-- File type detection
-- Text, table, PDF, and OCR parsing
-- Mock and OpenAI-based extraction providers
+- Internal dashboard with runtime visibility
+- Upload flow for TXT, CSV, XLSX, PDF, PNG, JPG, JPEG
+- File type detection and parsing
+- OCR path for images and scanned PDFs
+- Mock and OpenAI extraction providers
 - Normalized JSON output
-- Directory validation against employees, work objects, and work types
-- Manual review/edit workflow
+- Backend validation against employees, work objects, and work types
+- Manual review and correction workflow
 - JSON and CSV export
-- Mock 1C adapter boundary
-- Django admin for documents and directories
-- DRF API + Swagger UI
-- Demo seed command and sample files
+- 1C adapter boundary for future integration
+- Django admin, API, and Swagger UI
+- Local demo seed command and sample files
 - Processing modes: `sync`, `thread`, `celery`
 
-## Architecture
+## Project structure
 
 Apps:
 
-- `core`: dashboard and shared product pages
-- `documents`: document model, UI, API, processing flow, review, export, Celery task
-- `directories`: employees, work objects, work types, demo seed command
+- `core` - dashboard, healthcheck, shared views
+- `documents` - model, web UI, API, processing flow, review, export, Celery entrypoint
+- `directories` - employees, work objects, work types, demo seed command
 
-Service layer:
+Important services:
 
-- `documents/services/file_detector.py`: extension-based type detection
-- `documents/services/file_parser.py`: TXT, CSV, XLSX, PDF, image parsing and OCR handoff
-- `documents/services/ai_provider.py`: mock/OpenAI extraction provider selection
-- `documents/services/ocr.py`: OCR provider selection and OpenAI Vision OCR
-- `documents/services/normalizer.py`: stable field cleanup and hours normalization
-- `documents/services/validator.py`: backend validation rules
-- `documents/services/manual_review.py`: review save + revalidation flow
-- `documents/services/exporter.py`: JSON/CSV exports
-- `documents/services/export_status.py`: export readiness rules
-- `documents/services/pipeline.py`: main processing pipeline
-- `documents/services/processing_jobs.py`: queue/start processing for web, API, thread mode, and Celery mode
-- `documents/services/processing_status.py`: user-facing processing issue summaries
-- `documents/services/one_c_adapter.py`: future 1C integration boundary
-- `documents/tasks.py`: Celery background task entrypoint
+- `documents/services/file_detector.py`
+- `documents/services/file_parser.py`
+- `documents/services/ocr.py`
+- `documents/services/ai_provider.py`
+- `documents/services/normalizer.py`
+- `documents/services/validator.py`
+- `documents/services/manual_review.py`
+- `documents/services/exporter.py`
+- `documents/services/export_status.py`
+- `documents/services/pipeline.py`
+- `documents/services/processing_jobs.py`
+- `documents/services/processing_status.py`
+- `documents/services/one_c_adapter.py`
 
-Views stay thin. Business rules live in services so the same flow can be called from web UI, API, thread mode, and a future worker fleet.
+Views stay thin. Business logic lives in services so the same flow can be reused by web UI, API, thread mode, and Celery mode.
 
-## Environment
+## Environment files
 
-Local default example:
+Main example files in the repo:
+
+- `.env.example` - default local setup
+- `.env.celery.example` - local Redis plus Celery setup
+- `.env.s3.example` - shared object storage plus Celery-safe setup
+- `.env.render.example` - single-service Render-style setup
+
+Base variables:
 
 ```env
 SECRET_KEY=
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 CSRF_TRUSTED_ORIGINS=
-SECURE_SSL_REDIRECT=False
-SECURE_HSTS_SECONDS=0
-SECURE_HSTS_INCLUDE_SUBDOMAINS=False
-SECURE_HSTS_PRELOAD=False
 DATABASE_URL=
+MEDIA_ROOT=
+FILE_STORAGE_BACKEND=filesystem
 AI_PROVIDER=mock
 AI_API_KEY=
 AI_MODEL=gpt-5.5
@@ -95,10 +98,9 @@ OCR_MODEL=gpt-5.5
 OCR_TIMEOUT=30
 OCR_MAX_PDF_PAGES=3
 PROCESSING_MODE=thread
+ALLOW_LOCAL_FILE_WORKER=False
 CELERY_BROKER_URL=
 CELERY_RESULT_BACKEND=
-CELERY_TASK_ALWAYS_EAGER=False
-CELERY_TASK_EAGER_PROPAGATES=True
 AUTO_PROCESS_ON_UPLOAD=true
 ONE_C_BASE_URL=
 ONE_C_USERNAME=
@@ -107,81 +109,101 @@ ONE_C_PASSWORD=
 
 Provider notes:
 
-- `AI_PROVIDER=mock`: deterministic local extractor, no external API key required
-- `AI_PROVIDER=openai`: real OpenAI extraction
-- `OCR_PROVIDER=disabled`: skip OCR for images/scanned PDFs
-- `OCR_PROVIDER=openai`: use OpenAI Vision OCR
+- `AI_PROVIDER=mock` - deterministic local extractor, no API key required
+- `AI_PROVIDER=openai` - real OpenAI extraction
+- `OCR_PROVIDER=disabled` - skip OCR
+- `OCR_PROVIDER=openai` - use OpenAI Vision OCR
 
 Processing mode notes:
 
-- `PROCESSING_MODE=sync`: easiest for debugging, runs inside the request
-- `PROCESSING_MODE=thread`: best local demo default, no Redis required
-- `PROCESSING_MODE=celery`: production-ready worker mode
+- `PROCESSING_MODE=sync` - easiest for debugging
+- `PROCESSING_MODE=thread` - best local demo default, no Redis required
+- `PROCESSING_MODE=celery` - production-style worker mode
 
-Celery notes:
+## Quick start
 
-- `CELERY_BROKER_URL=redis://localhost:6379/0`
-- `CELERY_RESULT_BACKEND=redis://localhost:6379/0`
-- `CELERY_TASK_ALWAYS_EAGER=True` can be used for local code-path checks without Redis, but it is not real background processing
+Windows PowerShell:
 
-Keep API keys only in `.env`. Do not commit them.
-
-## Local Setup
-
-```bash
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
 python manage.py migrate
 python manage.py seed_demo_data
-python manage.py createsuperuser
 python manage.py runserver
 ```
 
-macOS/Linux activation:
+macOS or Linux:
 
 ```bash
+python -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python manage.py migrate
+python manage.py seed_demo_data
+python manage.py runserver
 ```
 
-Open locally:
+Useful local URLs:
 
-- Dashboard: http://127.0.0.1:8000/
-- Documents: http://127.0.0.1:8000/documents/
-- Admin: http://127.0.0.1:8000/admin/
-- Swagger UI: http://127.0.0.1:8000/api/docs/
-- OpenAPI schema: http://127.0.0.1:8000/api/schema/
+- Dashboard: `http://127.0.0.1:8000/`
+- Documents: `http://127.0.0.1:8000/documents/`
+- Admin: `http://127.0.0.1:8000/admin/`
+- Swagger UI: `http://127.0.0.1:8000/api/docs/`
+- OpenAPI schema: `http://127.0.0.1:8000/api/schema/`
+- Healthcheck: `http://127.0.0.1:8000/health/`
+- Runtime status: `http://127.0.0.1:8000/api/runtime/processing/`
 
-## Shared Storage
+## How to test the demo manually
 
-The project now supports two upload storage modes:
+### Stage 1: basic smoke test
 
-- `filesystem` -> current local/default mode
-- `s3` -> shared object storage for cloud-safe uploads
+1. Open `/health/` and confirm it returns OK.
+2. Open `/api/runtime/processing/` and confirm the mode is what you expect.
+3. Open `/api/docs/` and confirm Swagger loads.
 
-Main files:
+### Stage 2: upload and processing flow
 
-- `.env.s3.example`
-- `docs/shared_storage.md`
+1. Open `/documents/upload/`.
+2. Upload one of these files:
+   - `sample_documents/sample_worklog.txt`
+   - `sample_documents/sample_worklog.csv`
+   - `sample_documents/sample_worklog.xlsx`
+3. If `AUTO_PROCESS_ON_UPLOAD=true`, the document starts automatically.
+4. If auto-process is off, open the document detail page and click `Run processing`.
+5. Wait a few seconds if the status is `Queued` or `Processing`.
 
-Use `FILE_STORAGE_BACKEND=s3` when you want safe separate web + worker deployments with Celery.
+### Stage 3: review and export
 
-## Local Celery Bootstrap Files
+1. Open the document detail page.
+2. Check these blocks:
+   - `Extracted text`
+   - `Normalized JSON`
+   - `Validation`
+   - `Processing logs`
+3. If the document is `Needs review`, click `Review / Edit data`.
+4. Fix the fields and save.
+5. Download JSON and CSV.
+6. Click `Mark as exported`.
 
-Useful files for local Redis + Celery setup:
+### Stage 4: Swagger hand test
 
-- `.env.celery.example`
-- `docker-compose.redis.yml`
-- `scripts/dev_celery_worker.ps1`
-- `scripts/dev_runtime_check.ps1`
-- `docs/local_celery_redis.md`
+1. Open `http://127.0.0.1:8000/api/docs/`.
+2. Expand `POST /api/documents/`.
+3. Click `Try it out`.
+4. Upload a file with `title` and `file`.
+5. Execute the request.
+6. Copy the returned `id`.
+7. Expand `POST /api/documents/{id}/process/` and run it for that id if needed.
+8. Expand `GET /api/documents/{id}/` to inspect current status and payload.
 
-## Running Modes
+## Local runtime modes
 
-### Mode 1: Simple local demo
+### Mode 1: simple local demo
 
-Use this when you just want the app to work locally without extra services.
+Use this for the easiest local run.
 
 ```env
 PROCESSING_MODE=thread
@@ -189,44 +211,17 @@ ALLOW_LOCAL_FILE_WORKER=False
 AUTO_PROCESS_ON_UPLOAD=true
 ```
 
-Start only Django:
+Run only Django:
 
 ```bash
 python manage.py runserver
 ```
 
-### Smoke check for runtime status
+### Mode 2: real Celery worker
 
-Once the app is running, you can verify the processing backend in two ways:
+Use this when you want a real worker path.
 
-1. Browser/API check:
-   - Open `http://127.0.0.1:8000/api/runtime/processing/`
-   - In `thread` mode you should see `worker_status: not_required`
-   - In `celery` mode with a live worker you should see `worker_status: online`
-2. CLI check:
-
-```bash
-python manage.py check_processing_runtime
-```
-
-This prints JSON with the current mode, storage backend, local-worker override flag, broker configuration, eager flag, and worker visibility.
-
-### Mode 2: Real Celery worker
-
-Use this when you want to test the production-style background path.
-
-For cloud-safe separate services:
-
-```env
-FILE_STORAGE_BACKEND=s3
-ALLOW_LOCAL_FILE_WORKER=False
-PROCESSING_MODE=celery
-CELERY_BROKER_URL=redis://localhost:6379/0
-CELERY_RESULT_BACKEND=redis://localhost:6379/0
-AUTO_PROCESS_ON_UPLOAD=true
-```
-
-For same-machine local Redis + Celery only:
+Same-machine local setup:
 
 ```env
 FILE_STORAGE_BACKEND=filesystem
@@ -237,20 +232,32 @@ CELERY_RESULT_BACKEND=redis://localhost:6379/0
 AUTO_PROCESS_ON_UPLOAD=true
 ```
 
-Important: separate Celery worker mode requires shared storage. `FILE_STORAGE_BACKEND=filesystem` is allowed only when `ALLOW_LOCAL_FILE_WORKER=True` and Django plus Celery are running on the same machine for local development.
+Cloud-safe separate-service setup:
 
-Start Redis, then run these in separate terminals:
+```env
+FILE_STORAGE_BACKEND=s3
+ALLOW_LOCAL_FILE_WORKER=False
+PROCESSING_MODE=celery
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+AUTO_PROCESS_ON_UPLOAD=true
+```
+
+Then run Django and the worker in separate terminals:
 
 ```bash
 python manage.py runserver
 celery -A doc2onec worker -l info
 ```
 
-If you do not want Docker, install Redis directly on your machine or run it through WSL. Docker is optional, not required by the project. A complete Windows-friendly step-by-step guide is in `docs/local_celery_redis.md`.
+Windows helper files:
+
+- `docker-compose.redis.yml`
+- `scripts/dev_celery_worker.ps1`
+- `scripts/dev_runtime_check.ps1`
+- `docs/local_celery_redis.md`
 
 ### Mode 3: Celery code-path check without Redis
-
-This is useful only for quick local checks.
 
 ```env
 PROCESSING_MODE=celery
@@ -258,9 +265,25 @@ CELERY_TASK_ALWAYS_EAGER=True
 AUTO_PROCESS_ON_UPLOAD=true
 ```
 
-In this mode, Celery tasks execute immediately in-process.
+This is useful only for quick code-path checks. It is not real background processing.
 
-## API
+## Runtime health checks
+
+Browser or API checks:
+
+- `/health/`
+- `/api/runtime/processing/`
+
+CLI check:
+
+```bash
+python manage.py check_processing_runtime
+```
+
+In `thread` mode you should usually see `worker_status: not_required`.
+In `celery` mode with a live worker you should see `worker_status: online`.
+
+## API summary
 
 Main endpoints:
 
@@ -274,7 +297,60 @@ Main endpoints:
 - `GET /api/work-objects/`
 - `GET /api/work-types/`
 
-## Checks
+## Shared storage
+
+Storage modes:
+
+- `filesystem` - local/default mode
+- `s3` - shared object storage for cloud-safe uploads
+
+See:
+
+- `docs/shared_storage.md`
+- `.env.s3.example`
+
+Use `FILE_STORAGE_BACKEND=s3` when web and worker are separate services.
+
+## Render deployment
+
+This repo includes two Render profiles:
+
+- `render.free.yaml` - free public demo path, no persistent disk
+- `render.yaml` - safer single-service path with persistent disk
+
+Recommended current Render setup:
+
+- one Django web service
+- one Postgres database
+- persistent disk
+- `PROCESSING_MODE=thread`
+
+Why: Render persistent disks are attached to one service only. If you want a separate Celery worker, move uploads to shared object storage first.
+
+Detailed guides:
+
+- `docs/render_free_demo.md`
+- `docs/render_deploy.md`
+
+## Deployment files
+
+Included deploy-friendly files:
+
+- `Procfile`
+- `runtime.txt`
+- `requirements.txt`
+- `build.sh`
+- `render.yaml`
+- `render.free.yaml`
+
+Process commands:
+
+- Release: `python manage.py migrate --noinput`
+- Web: `gunicorn doc2onec.wsgi:application`
+- Worker: `celery -A doc2onec worker -l info`
+- Static: `python manage.py collectstatic --noinput`
+
+## Verification commands
 
 Run these before demoing or deploying:
 
@@ -286,107 +362,15 @@ python manage.py test
 python manage.py collectstatic --noinput
 ```
 
-## Demo Workflow
+## Demo data
 
-1. Run `python manage.py seed_demo_data`.
-2. Open `/documents/upload/`.
-3. Upload `sample_documents/sample_worklog.txt`, `.csv`, or `.xlsx`.
-4. The document is queued automatically when `AUTO_PROCESS_ON_UPLOAD=true`.
-5. Open the detail page if it does not open automatically.
-6. If the document shows `Queued` or `Processing`, wait a few seconds. The detail page, dashboard, and document list auto-refresh while active processing exists.
-7. Review extracted text, normalized JSON, validation status, and processing logs.
-8. If the status is `Needs review`, open `Review / Edit data`, fix the fields, and save.
-9. Download JSON or CSV.
-10. Mark the document as exported.
+`python manage.py seed_demo_data` creates demo employees, work objects, work types, and refreshes files in `sample_documents/`.
 
-## Sample Data
+## Next production stages
 
-The seed command creates:
-
-Employees:
-
-- Ivanov Ivan
-- Petrov Sergey
-- Sidorov Aleksei
-
-Work objects:
-
-- Object No. 1
-- Object No. 2
-- Astana-1
-
-Work types:
-
-- Electrical installation work
-- Cable installation
-- Technical maintenance
-
-It also refreshes the sample files in `sample_documents/`.
-
-## Render Deployment Notes
-
-There are now two Render paths in this repo:
-
-- `render.free.yaml` -> free demo deploy, no card path, no persistent disk
-- `render.yaml` -> safer monolith deploy with persistent disk
-
-If you want a no-card public demo, start with `docs/render_free_demo.md`.
-
-The current safest paid-ish Render deployment is a single Django web service with Postgres and a persistent disk, using `PROCESSING_MODE=thread`.
-
-Why: Render persistent disks are attached to a single service, so a real web + worker deployment should use `FILE_STORAGE_BACKEND=s3`. Local filesystem mode remains fine for single-service demos.
-
-Detailed guides:
-- `docs/render_free_demo.md`
-- `docs/render_deploy.md`
-
-## Deployment Notes
-
-Included deploy-friendly files:
-
-- `Procfile`
-- `runtime.txt`
-- `requirements.txt`
-- `.env.example`
-
-Recommended production variables:
-
-```env
-SECRET_KEY=change-me
-DEBUG=False
-ALLOWED_HOSTS=your-domain.com,your-app.onrender.com
-CSRF_TRUSTED_ORIGINS=https://your-domain.com,https://your-app.onrender.com
-SECURE_SSL_REDIRECT=True
-SECURE_HSTS_SECONDS=3600
-SECURE_HSTS_INCLUDE_SUBDOMAINS=True
-SECURE_HSTS_PRELOAD=True
-DATABASE_URL=postgres://...
-AI_PROVIDER=mock
-AI_API_KEY=
-OCR_PROVIDER=disabled
-PROCESSING_MODE=celery
-CELERY_BROKER_URL=redis://...
-CELERY_RESULT_BACKEND=redis://...
-AUTO_PROCESS_ON_UPLOAD=true
-ONE_C_BASE_URL=
-ONE_C_USERNAME=
-ONE_C_PASSWORD=
-```
-
-Deployment commands:
-
-- Release: `python manage.py migrate --noinput`
-- Web: `gunicorn doc2onec.wsgi:application`
-- Worker: `celery -A doc2onec worker -l info`
-- Static: `python manage.py collectstatic --noinput`
-
-## Future Stages
-
-- Add true 1C OData/API integration
-- Add richer review guidance and field suggestions
-- Add authentication/roles for production use
-- Add audit logging and retention policy
-- Add machine-to-machine ingestion API keys
-- Add queue split and retry policies for larger workloads
-
-
+- real 1C OData or API integration
+- authentication and roles
+- audit logging
+- retry policies and queue split
+- richer review suggestions
+- machine-to-machine ingestion keys
