@@ -10,7 +10,7 @@ The platform demonstrates the full internal workflow:
 
 Upload document -> detect file type -> parse/OCR -> AI extraction -> normalized JSON -> backend validation -> status tracking -> manual review if needed -> JSON/CSV export -> future 1C adapter boundary.
 
-The codebase is a modular monolith: small enough for an MVP, but structured so real OCR, LLM extraction, human review, and 1C integration can evolve without a rewrite.
+The codebase is a modular monolith: small enough for an MVP, but structured so real OCR, LLM extraction, human review, background workers, and 1C integration can evolve without a rewrite.
 
 ## Tech Stack
 
@@ -24,8 +24,8 @@ The codebase is a modular monolith: small enough for an MVP, but structured so r
 - `openpyxl` for XLSX parsing
 - `pypdf` for text-based PDF extraction
 - `PyMuPDF` for scanned PDF rendering before OCR
-- `django-environ` for environment configuration
 - `openai` for optional AI extraction and OCR
+- `celery[redis]` for production-ready background processing
 - `gunicorn` + `whitenoise` for deployment
 
 ## MVP Features
@@ -43,13 +43,14 @@ The codebase is a modular monolith: small enough for an MVP, but structured so r
 - Django admin for documents and directories
 - DRF API + Swagger UI
 - Demo seed command and sample files
+- Processing modes: `sync`, `thread`, `celery`
 
 ## Architecture
 
 Apps:
 
 - `core`: dashboard and shared product pages
-- `documents`: document model, UI, API, processing flow, review, export
+- `documents`: document model, UI, API, processing flow, review, export, Celery task
 - `directories`: employees, work objects, work types, demo seed command
 
 Service layer:
@@ -64,11 +65,12 @@ Service layer:
 - `documents/services/exporter.py`: JSON/CSV exports
 - `documents/services/export_status.py`: export readiness rules
 - `documents/services/pipeline.py`: main processing pipeline
-- `documents/services/processing_jobs.py`: queue/start processing for web and API flows
+- `documents/services/processing_jobs.py`: queue/start processing for web, API, thread mode, and Celery mode
 - `documents/services/processing_status.py`: user-facing processing issue summaries
 - `documents/services/one_c_adapter.py`: future 1C integration boundary
+- `documents/tasks.py`: Celery background task entrypoint
 
-Views stay thin. Business rules live in services so the same flow can be called from web UI, API, and a future Celery worker.
+Views stay thin. Business rules live in services so the same flow can be called from web UI, API, thread mode, and a future worker fleet.
 
 ## Environment
 
@@ -93,33 +95,34 @@ OCR_MODEL=gpt-5.5
 OCR_TIMEOUT=30
 OCR_MAX_PDF_PAGES=3
 PROCESSING_MODE=thread
+CELERY_BROKER_URL=
+CELERY_RESULT_BACKEND=
+CELERY_TASK_ALWAYS_EAGER=False
+CELERY_TASK_EAGER_PROPAGATES=True
 AUTO_PROCESS_ON_UPLOAD=true
 ONE_C_BASE_URL=
 ONE_C_USERNAME=
 ONE_C_PASSWORD=
 ```
 
-Available providers:
+Provider notes:
 
 - `AI_PROVIDER=mock`: deterministic local extractor, no external API key required
 - `AI_PROVIDER=openai`: real OpenAI extraction
 - `OCR_PROVIDER=disabled`: skip OCR for images/scanned PDFs
 - `OCR_PROVIDER=openai`: use OpenAI Vision OCR
 
-For real AI locally:
+Processing mode notes:
 
-```env
-AI_PROVIDER=openai
-AI_API_KEY=your-local-key
-AI_MODEL=gpt-5.5
-AI_TIMEOUT=30
-OCR_PROVIDER=openai
-OCR_MODEL=gpt-5.5
-OCR_TIMEOUT=30
-OCR_MAX_PDF_PAGES=3
-PROCESSING_MODE=thread
-AUTO_PROCESS_ON_UPLOAD=true
-```
+- `PROCESSING_MODE=sync`: easiest for debugging, runs inside the request
+- `PROCESSING_MODE=thread`: best local demo default, no Redis required
+- `PROCESSING_MODE=celery`: production-ready worker mode
+
+Celery notes:
+
+- `CELERY_BROKER_URL=redis://localhost:6379/0`
+- `CELERY_RESULT_BACKEND=redis://localhost:6379/0`
+- `CELERY_TASK_ALWAYS_EAGER=True` can be used for local code-path checks without Redis, but it is not real background processing
 
 Keep API keys only in `.env`. Do not commit them.
 
@@ -150,6 +153,57 @@ Open locally:
 - Swagger UI: http://127.0.0.1:8000/api/docs/
 - OpenAPI schema: http://127.0.0.1:8000/api/schema/
 
+## Running Modes
+
+### Mode 1: Simple local demo
+
+Use this when you just want the app to work locally without extra services.
+
+```env
+PROCESSING_MODE=thread
+AUTO_PROCESS_ON_UPLOAD=true
+```
+
+Start only Django:
+
+```bash
+python manage.py runserver
+```
+
+### Mode 2: Real Celery worker locally
+
+Use this when you want to test the production-style background path.
+
+Set in `.env`:
+
+```env
+PROCESSING_MODE=celery
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+AUTO_PROCESS_ON_UPLOAD=true
+```
+
+Start Redis, then run these in separate terminals:
+
+```bash
+python manage.py runserver
+celery -A doc2onec worker -l info
+```
+
+If you do not want Docker, install Redis directly on your machine or run it through WSL. Docker is optional, not required by the project.
+
+### Mode 3: Celery code-path check without Redis
+
+This is useful only for quick local checks.
+
+```env
+PROCESSING_MODE=celery
+CELERY_TASK_ALWAYS_EAGER=True
+AUTO_PROCESS_ON_UPLOAD=true
+```
+
+In this mode, Celery tasks execute immediately in-process.
+
 ## API
 
 Main endpoints:
@@ -173,6 +227,7 @@ python manage.py check
 python manage.py makemigrations --check --dry-run
 python manage.py spectacular --file schema.yml --validate
 python manage.py test
+python manage.py collectstatic --noinput
 ```
 
 ## Demo Workflow
@@ -236,7 +291,9 @@ DATABASE_URL=postgres://...
 AI_PROVIDER=mock
 AI_API_KEY=
 OCR_PROVIDER=disabled
-PROCESSING_MODE=thread
+PROCESSING_MODE=celery
+CELERY_BROKER_URL=redis://...
+CELERY_RESULT_BACKEND=redis://...
 AUTO_PROCESS_ON_UPLOAD=true
 ONE_C_BASE_URL=
 ONE_C_USERNAME=
@@ -246,12 +303,13 @@ ONE_C_PASSWORD=
 Deployment commands:
 
 - Release: `python manage.py migrate --noinput`
-- Build/static: `python manage.py collectstatic --noinput`
-- Start: `gunicorn doc2onec.wsgi:application`
+- Web: `gunicorn doc2onec.wsgi:application`
+- Worker: `celery -A doc2onec worker -l info`
+- Static: `python manage.py collectstatic --noinput`
 
 ## Future Stages
 
-- Replace MVP thread processing with Celery + Redis
+- Add Redis-backed retry policy and queue separation
 - Add true 1C OData/API integration
 - Add richer review guidance and field suggestions
 - Add authentication/roles for production use

@@ -4,6 +4,7 @@ from tempfile import NamedTemporaryFile
 from io import BytesIO
 from unittest.mock import patch
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.files import File
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -634,3 +635,40 @@ class DirectoryApiTests(DemoDirectoryMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['results'][0]['external_1c_id'], 'EMP-001')
+
+
+class ProcessingModeTests(DemoDirectoryMixin, TestCase):
+    @override_settings(PROCESSING_MODE="celery", CELERY_TASK_ALWAYS_EAGER=True)
+    @patch("documents.services.processing_jobs.transaction.on_commit", side_effect=lambda callback: callback())
+    @patch("documents.services.processing_jobs.process_document_task.delay")
+    def test_enqueue_document_processing_dispatches_celery_task(self, delay_mock, on_commit_mock):
+        document = self.create_uploaded_document()
+
+        queued_document = enqueue_document_processing(document.id, source="test")
+        document.refresh_from_db()
+
+        self.assertEqual(queued_document.status, Document.Status.QUEUED)
+        self.assertEqual(document.status, Document.Status.QUEUED)
+        delay_mock.assert_called_once_with(document.id)
+        on_commit_mock.assert_called_once()
+        self.assertTrue(document.logs.filter(step="queue", message__icontains="Celery").exists())
+
+    @override_settings(PROCESSING_MODE="celery", CELERY_BROKER_URL="", CELERY_TASK_ALWAYS_EAGER=False)
+    def test_enqueue_document_processing_requires_celery_broker(self):
+        document = self.create_uploaded_document()
+
+        with self.assertRaisesMessage(ImproperlyConfigured, "CELERY_BROKER_URL"):
+            enqueue_document_processing(document.id, source="test")
+        document.refresh_from_db()
+
+        self.assertEqual(document.status, Document.Status.UPLOADED)
+
+    @override_settings(PROCESSING_MODE="bogus")
+    def test_enqueue_document_processing_rejects_unknown_mode(self):
+        document = self.create_uploaded_document()
+
+        with self.assertRaisesMessage(ImproperlyConfigured, "Unsupported PROCESSING_MODE"):
+            enqueue_document_processing(document.id, source="test")
+        document.refresh_from_db()
+
+        self.assertEqual(document.status, Document.Status.UPLOADED)
