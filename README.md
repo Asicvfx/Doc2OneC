@@ -162,6 +162,7 @@ Useful files for local Redis + Celery setup:
 - `scripts/dev_celery_worker.ps1`
 - `scripts/dev_runtime_check.ps1`
 - `docs/local_celery_redis.md`
+
 ## Running Modes
 
 ### Mode 1: Simple local demo
@@ -195,6 +196,7 @@ python manage.py check_processing_runtime
 ```
 
 This prints JSON with the current mode, broker configuration, eager flag, and worker visibility.
+
 ### Mode 2: Real Celery worker locally
 
 Use this when you want to test the production-style background path.
@@ -294,11 +296,20 @@ It also refreshes the sample files in `sample_documents/`.
 
 ## Render Deployment Notes
 
-The current safest Render deployment is a single Django web service with Postgres and a persistent disk, using `PROCESSING_MODE=thread`.
+There are now two Render paths in this repo:
+
+- `render.free.yaml` -> free demo deploy, no card path, no persistent disk
+- `render.yaml` -> safer monolith deploy with persistent disk
+
+If you want a no-card public demo, start with `docs/render_free_demo.md`.
+
+The current safest paid-ish Render deployment is a single Django web service with Postgres and a persistent disk, using `PROCESSING_MODE=thread`.
 
 Why: Render persistent disks are attached to a single service, so the current local-file upload flow is not yet safe for a separate Celery worker. A full web + worker Render architecture becomes correct after the future shared-storage stage.
 
-Detailed guide: `docs/render_deploy.md`
+Detailed guides:
+- `docs/render_free_demo.md`
+- `docs/render_deploy.md`
 
 ## Deployment Notes
 
