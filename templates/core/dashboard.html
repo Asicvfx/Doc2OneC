@@ -47,6 +47,9 @@
         {% else %}
           <span class="badge text-bg-light text-dark border">Local storage: {{ runtime_status.storage_backend|upper }}</span>
         {% endif %}
+        {% if runtime_status.local_worker_override %}
+          <span class="badge text-bg-warning text-dark">Local worker override</span>
+        {% endif %}
         {% if runtime_status.auto_process_on_upload %}
           <span class="badge text-bg-primary">Auto-process on upload</span>
         {% else %}

@@ -19,6 +19,7 @@ env = environ.Env(
     SECURE_HSTS_PRELOAD=(bool, False),
     CELERY_TASK_ALWAYS_EAGER=(bool, False),
     CELERY_TASK_EAGER_PROPAGATES=(bool, True),
+    ALLOW_LOCAL_FILE_WORKER=(bool, False),
     REDIS_PORT=(int, 6379),
     REDIS_DB=(int, 0),
     AWS_QUERYSTRING_AUTH=(bool, True),
@@ -173,6 +174,7 @@ OCR_MODEL = env("OCR_MODEL", default=AI_MODEL)
 OCR_TIMEOUT = env("OCR_TIMEOUT")
 OCR_MAX_PDF_PAGES = env("OCR_MAX_PDF_PAGES")
 PROCESSING_MODE = env("PROCESSING_MODE", default="thread")
+ALLOW_LOCAL_FILE_WORKER = env("ALLOW_LOCAL_FILE_WORKER")
 REDIS_SCHEME = env("REDIS_SCHEME", default="redis")
 REDIS_HOST = env("REDIS_HOST", default="").strip()
 REDIS_PORT = env("REDIS_PORT")

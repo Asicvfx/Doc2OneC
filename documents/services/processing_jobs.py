@@ -8,7 +8,7 @@ from documents.models import Document
 from documents.tasks import process_document_task
 
 from .pipeline import process_document
-from .processing_runtime import celery_storage_is_safe
+from .processing_runtime import celery_storage_is_safe, local_file_worker_override_enabled
 
 
 ACTIVE_PROCESSING_STATUSES = {Document.Status.QUEUED, Document.Status.PROCESSING}
@@ -48,7 +48,10 @@ def enqueue_document_processing(document_id: int, source: str = "web") -> Docume
     if mode == "celery":
         _validate_celery_configuration()
         _mark_document_queued(document)
-        document.logs.create(step="queue", message=f"Processing queued in Celery from {source}.", level="info")
+        message = f"Processing queued in Celery from {source}."
+        if local_file_worker_override_enabled() and (settings.FILE_STORAGE_BACKEND or "filesystem").strip().lower() == "filesystem":
+            message += " Local filesystem worker override is enabled for same-machine development."
+        document.logs.create(step="queue", message=message, level="info")
         transaction.on_commit(lambda: process_document_task.delay(document.id))
         return document
 
@@ -67,8 +70,8 @@ def _validate_celery_configuration() -> None:
         return
     if not celery_storage_is_safe():
         raise ImproperlyConfigured(
-            "PROCESSING_MODE=celery requires FILE_STORAGE_BACKEND=s3 for separate worker processing, "
-            "or enable CELERY_TASK_ALWAYS_EAGER for local checks."
+            "PROCESSING_MODE=celery requires FILE_STORAGE_BACKEND=s3 for real separate worker deployment, "
+            "or set ALLOW_LOCAL_FILE_WORKER=True only when Django and Celery share the same local filesystem."
         )
     if not (settings.CELERY_BROKER_URL or "").strip():
         raise ImproperlyConfigured(

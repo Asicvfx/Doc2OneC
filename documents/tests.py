@@ -675,6 +675,21 @@ class ProcessingModeTests(DemoDirectoryMixin, TestCase):
 
         self.assertEqual(document.status, Document.Status.UPLOADED)
 
+    @override_settings(PROCESSING_MODE="celery", FILE_STORAGE_BACKEND="filesystem", ALLOW_LOCAL_FILE_WORKER=True, CELERY_BROKER_URL="redis://localhost:6379/0", CELERY_TASK_ALWAYS_EAGER=False)
+    @patch("documents.services.processing_jobs.transaction.on_commit", side_effect=lambda callback: callback())
+    @patch("documents.services.processing_jobs.process_document_task.delay")
+    def test_enqueue_document_processing_allows_same_machine_filesystem_worker_override(self, delay_mock, on_commit_mock):
+        document = self.create_uploaded_document()
+
+        queued_document = enqueue_document_processing(document.id, source="test")
+        document.refresh_from_db()
+
+        self.assertEqual(queued_document.status, Document.Status.QUEUED)
+        self.assertEqual(document.status, Document.Status.QUEUED)
+        delay_mock.assert_called_once_with(document.id)
+        on_commit_mock.assert_called_once()
+        self.assertTrue(document.logs.filter(step="queue", message__icontains="Local filesystem worker override").exists())
+
     @override_settings(PROCESSING_MODE="bogus")
     def test_enqueue_document_processing_rejects_unknown_mode(self):
         document = self.create_uploaded_document()
@@ -707,6 +722,7 @@ class ProcessingRuntimeTests(DemoDirectoryMixin, TestCase):
         self.assertEqual(payload["mode"], "celery")
         self.assertEqual(payload["storage_backend"], "filesystem")
         self.assertFalse(payload["storage_shared"])
+        self.assertFalse(payload["local_worker_override"])
         self.assertEqual(payload["worker_status"], "misconfigured")
         self.assertIn("FILE_STORAGE_BACKEND=s3", payload["worker_detail"])
 
@@ -719,8 +735,22 @@ class ProcessingRuntimeTests(DemoDirectoryMixin, TestCase):
         self.assertEqual(payload["mode"], "celery")
         self.assertEqual(payload["storage_backend"], "s3")
         self.assertTrue(payload["storage_shared"])
+        self.assertFalse(payload["local_worker_override"])
         self.assertEqual(payload["worker_status"], "misconfigured")
         self.assertIn("CELERY_BROKER_URL", payload["worker_detail"])
+
+    @override_settings(PROCESSING_MODE="celery", FILE_STORAGE_BACKEND="filesystem", ALLOW_LOCAL_FILE_WORKER=True, CELERY_BROKER_URL="redis://localhost:6379/0", CELERY_TASK_ALWAYS_EAGER=False)
+    def test_runtime_status_endpoint_allows_local_filesystem_worker_override(self):
+        response = self.client.get(reverse("processing-runtime-status"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["mode"], "celery")
+        self.assertEqual(payload["storage_backend"], "filesystem")
+        self.assertFalse(payload["storage_shared"])
+        self.assertTrue(payload["local_worker_override"])
+        self.assertEqual(payload["worker_status"], "offline")
+        self.assertIn("same-machine development", payload["worker_detail"])
 
     @override_settings(PROCESSING_MODE="celery", CELERY_TASK_ALWAYS_EAGER=True)
     def test_runtime_check_command_prints_json_status(self):
@@ -768,3 +798,4 @@ class HealthcheckTests(TestCase):
         self.assertEqual(response.json()["status"], "error")
         self.assertEqual(response.json()["database"], "down")
         self.assertIn("db unavailable", response.json()["detail"])
+

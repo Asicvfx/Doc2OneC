@@ -13,6 +13,7 @@ class ProcessingRuntimeStatus:
     auto_process_on_upload: bool
     storage_backend: str
     storage_shared: bool
+    local_worker_override: bool
     broker_configured: bool
     eager: bool
     worker_status: str
@@ -24,6 +25,7 @@ class ProcessingRuntimeStatus:
             "auto_process_on_upload": self.auto_process_on_upload,
             "storage_backend": self.storage_backend,
             "storage_shared": self.storage_shared,
+            "local_worker_override": self.local_worker_override,
             "broker_configured": self.broker_configured,
             "eager": self.eager,
             "worker_status": self.worker_status,
@@ -43,13 +45,17 @@ def is_shared_storage_enabled() -> bool:
     return get_storage_backend() == "s3"
 
 
+def local_file_worker_override_enabled() -> bool:
+    return bool(getattr(settings, "ALLOW_LOCAL_FILE_WORKER", False))
+
+
 def celery_requires_shared_storage() -> bool:
     mode = (settings.PROCESSING_MODE or "thread").strip().lower()
     return mode == "celery" and not bool(settings.CELERY_TASK_ALWAYS_EAGER)
 
 
 def celery_storage_is_safe() -> bool:
-    return not celery_requires_shared_storage() or is_shared_storage_enabled()
+    return not celery_requires_shared_storage() or is_shared_storage_enabled() or local_file_worker_override_enabled()
 
 
 def get_processing_runtime_status() -> ProcessingRuntimeStatus:
@@ -57,6 +63,7 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
     auto_process = bool(settings.AUTO_PROCESS_ON_UPLOAD)
     storage_backend = get_storage_backend()
     storage_shared = is_shared_storage_enabled()
+    local_worker_override = local_file_worker_override_enabled()
     broker_configured = bool((settings.CELERY_BROKER_URL or "").strip())
     eager = bool(settings.CELERY_TASK_ALWAYS_EAGER)
 
@@ -66,6 +73,7 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
             auto_process_on_upload=auto_process,
             storage_backend=storage_backend,
             storage_shared=storage_shared,
+            local_worker_override=local_worker_override,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="not_required",
@@ -78,6 +86,7 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
             auto_process_on_upload=auto_process,
             storage_backend=storage_backend,
             storage_shared=storage_shared,
+            local_worker_override=local_worker_override,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="not_required",
@@ -90,6 +99,7 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
             auto_process_on_upload=auto_process,
             storage_backend=storage_backend,
             storage_shared=storage_shared,
+            local_worker_override=local_worker_override,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="misconfigured",
@@ -102,25 +112,27 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
             auto_process_on_upload=auto_process,
             storage_backend=storage_backend,
             storage_shared=storage_shared,
+            local_worker_override=local_worker_override,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="eager",
             worker_detail="Celery eager mode is enabled. Tasks execute immediately in-process for local checks.",
         )
 
-    if not storage_shared:
+    if not storage_shared and not local_worker_override:
         return ProcessingRuntimeStatus(
             mode=mode,
             auto_process_on_upload=auto_process,
             storage_backend=storage_backend,
             storage_shared=storage_shared,
+            local_worker_override=local_worker_override,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="misconfigured",
             worker_detail=(
-                "Celery worker mode requires shared file storage. "
-                "Set FILE_STORAGE_BACKEND=s3 for separate web and worker services, "
-                "or enable CELERY_TASK_ALWAYS_EAGER for local checks."
+                "Celery worker mode requires shared file storage for real separate services. "
+                "Set FILE_STORAGE_BACKEND=s3 for cloud deployment, or set ALLOW_LOCAL_FILE_WORKER=True "
+                "only when Django and Celery share the same local filesystem."
             ),
         )
 
@@ -130,6 +142,7 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
             auto_process_on_upload=auto_process,
             storage_backend=storage_backend,
             storage_shared=storage_shared,
+            local_worker_override=local_worker_override,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="misconfigured",
@@ -141,6 +154,7 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
         auto_process=auto_process,
         storage_backend=storage_backend,
         storage_shared=storage_shared,
+        local_worker_override=local_worker_override,
         broker_configured=broker_configured,
         eager=eager,
     )
@@ -152,9 +166,14 @@ def _probe_celery_worker(
     auto_process: bool,
     storage_backend: str,
     storage_shared: bool,
+    local_worker_override: bool,
     broker_configured: bool,
     eager: bool,
 ) -> ProcessingRuntimeStatus:
+    local_note = ""
+    if local_worker_override and not storage_shared:
+        local_note = " Local filesystem worker override is enabled for same-machine development only."
+
     try:
         from doc2onec.celery import app as celery_app
 
@@ -166,10 +185,11 @@ def _probe_celery_worker(
             auto_process_on_upload=auto_process,
             storage_backend=storage_backend,
             storage_shared=storage_shared,
+            local_worker_override=local_worker_override,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="offline",
-            worker_detail=f"Celery ping failed: {exc}",
+            worker_detail=f"Celery ping failed: {exc}.{local_note}".strip(),
         )
 
     if ping_result:
@@ -179,10 +199,11 @@ def _probe_celery_worker(
             auto_process_on_upload=auto_process,
             storage_backend=storage_backend,
             storage_shared=storage_shared,
+            local_worker_override=local_worker_override,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="online",
-            worker_detail=f"Celery worker responded: {workers}",
+            worker_detail=f"Celery worker responded: {workers}.{local_note}".strip(),
         )
 
     return ProcessingRuntimeStatus(
@@ -190,8 +211,9 @@ def _probe_celery_worker(
         auto_process_on_upload=auto_process,
         storage_backend=storage_backend,
         storage_shared=storage_shared,
+        local_worker_override=local_worker_override,
         broker_configured=broker_configured,
         eager=eager,
         worker_status="offline",
-        worker_detail="Broker is configured, but no Celery worker responded to ping.",
+        worker_detail=f"Broker is configured, but no Celery worker responded to ping.{local_note}".strip(),
     )

@@ -86,5 +86,6 @@ Before this stage:
 
 After this stage:
 - runtime checks expose storage safety directly
-- Celery worker mode refuses unsafe filesystem-based separate-worker setups
+- Celery worker mode refuses unsafe filesystem-based separate-worker setups unless you explicitly opt into same-machine local development with `ALLOW_LOCAL_FILE_WORKER=True`
 - web + worker deployment rules are clearer for real hosting
+

@@ -185,6 +185,7 @@ Use this when you just want the app to work locally without extra services.
 
 ```env
 PROCESSING_MODE=thread
+ALLOW_LOCAL_FILE_WORKER=False
 AUTO_PROCESS_ON_UPLOAD=true
 ```
 
@@ -202,30 +203,41 @@ Once the app is running, you can verify the processing backend in two ways:
    - Open `http://127.0.0.1:8000/api/runtime/processing/`
    - In `thread` mode you should see `worker_status: not_required`
    - In `celery` mode with a live worker you should see `worker_status: online`
-
 2. CLI check:
 
 ```bash
 python manage.py check_processing_runtime
 ```
 
-This prints JSON with the current mode, broker configuration, eager flag, and worker visibility.
+This prints JSON with the current mode, storage backend, local-worker override flag, broker configuration, eager flag, and worker visibility.
 
-### Mode 2: Real Celery worker locally
+### Mode 2: Real Celery worker
 
 Use this when you want to test the production-style background path.
 
-Set in `.env`:
+For cloud-safe separate services:
 
 ```env
 FILE_STORAGE_BACKEND=s3
+ALLOW_LOCAL_FILE_WORKER=False
 PROCESSING_MODE=celery
 CELERY_BROKER_URL=redis://localhost:6379/0
 CELERY_RESULT_BACKEND=redis://localhost:6379/0
 AUTO_PROCESS_ON_UPLOAD=true
 ```
 
-Important: separate Celery worker mode now requires shared storage. If you keep `FILE_STORAGE_BACKEND=filesystem`, runtime checks will show the setup as misconfigured for worker deployment.
+For same-machine local Redis + Celery only:
+
+```env
+FILE_STORAGE_BACKEND=filesystem
+ALLOW_LOCAL_FILE_WORKER=True
+PROCESSING_MODE=celery
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+AUTO_PROCESS_ON_UPLOAD=true
+```
+
+Important: separate Celery worker mode requires shared storage. `FILE_STORAGE_BACKEND=filesystem` is allowed only when `ALLOW_LOCAL_FILE_WORKER=True` and Django plus Celery are running on the same machine for local development.
 
 Start Redis, then run these in separate terminals:
 
@@ -376,3 +388,5 @@ Deployment commands:
 - Add audit logging and retention policy
 - Add machine-to-machine ingestion API keys
 - Add queue split and retry policies for larger workloads
+
+

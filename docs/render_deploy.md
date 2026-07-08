@@ -6,7 +6,7 @@ This project is currently safest on Render as a single Django web service with P
 
 The application stores uploaded files in `MEDIA_ROOT` and the processing pipeline reads those files later.
 
-Render persistent disks are attached to a single service and are not shared with other services. That means a separate Celery worker cannot safely read files written by the web service unless we move uploads to shared object storage such as S3.
+Render persistent disks are attached to a single service and are not shared with other services. That means a separate Celery worker cannot safely read files written by the web service unless uploads live in shared object storage such as S3.
 
 Because of that, the current deployment recommendation is:
 
@@ -53,10 +53,11 @@ So the default Render hostname works without manual host juggling.
 2. Confirm dashboard loads
 3. Open `/health/`
 4. Open `/api/runtime/processing/`
-5. Upload `sample_documents/sample_worklog.txt`
-6. Open the created document
-7. Confirm status moves through processing and finishes as `Ready for 1C` or `Needs review`
-8. Download JSON or CSV
+5. Confirm it shows `mode: thread`
+6. Upload `sample_documents/sample_worklog.txt`
+7. Open the created document
+8. Confirm status moves through processing and finishes as `Ready for 1C` or `Needs review`
+9. Download JSON or CSV
 
 ## Important limitation right now
 
@@ -64,20 +65,17 @@ Do not deploy the current project on Render with both:
 - `PROCESSING_MODE=celery`
 - file uploads stored on the web service disk
 
-That combination is not safe yet because the worker service cannot access the same persistent disk.
+That combination is not safe because the worker service cannot access the same persistent disk.
 
-## What unlocks Render worker mode later
+## What unlocks worker mode
 
-To run web + worker correctly on Render, the next storage stage should move uploads from local disk to shared object storage such as:
-- AWS S3
-- Cloudflare R2
-- Backblaze B2 via S3 API
-- MinIO in another environment
+The project now supports shared object storage for uploads. To run web + worker correctly on Render, use:
 
-After that, the app can safely use:
+- `FILE_STORAGE_BACKEND=s3`
+- object storage such as AWS S3, Cloudflare R2, Backblaze B2 via S3 API, or another S3-compatible provider
 - Render web service
 - Render background worker
-- Render Key Value
+- Render Key Value or another Redis-compatible broker
 - Render Postgres
 
 ## Render-safe MVP vs later architecture

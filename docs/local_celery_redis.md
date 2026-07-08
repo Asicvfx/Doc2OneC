@@ -2,6 +2,8 @@
 
 This guide gives two local ways to run Doc2OneC with real Celery background processing.
 
+Important: this guide is for same-machine local development only. It uses `ALLOW_LOCAL_FILE_WORKER=True`, which is acceptable only when Django and Celery share the same local filesystem. For cloud deployment or separate services, use `FILE_STORAGE_BACKEND=s3` instead.
+
 ## Option A: No Docker
 
 Use this if you already have Redis installed locally or through WSL.
@@ -24,6 +26,7 @@ Use this if you already have Redis installed locally or through WSL.
 Expected result:
 - `mode` = `celery`
 - `worker_status` = `online`
+- `local_worker_override` = `true`
 
 ## Option B: Docker only for Redis
 
@@ -54,19 +57,21 @@ Use this if you do not want to install Redis directly on Windows.
 Expected result:
 - `mode` = `celery`
 - `worker_status` = `online`
+- `local_worker_override` = `true`
 
 ## Manual Smoke Test
 
 1. Open `http://127.0.0.1:8000/`
 2. Confirm the dashboard panel says `Mode: celery`
 3. Confirm the panel reports worker online
-4. Upload `sample_documents/sample_worklog.txt`
-5. Check document status flow:
+4. Confirm the panel shows `Local worker override`
+5. Upload `sample_documents/sample_worklog.txt`
+6. Check document status flow:
    - `Queued`
    - `Processing`
    - `Ready for 1C` or `Needs review`
-6. Open `http://127.0.0.1:8000/api/runtime/processing/`
-7. Confirm the JSON says `worker_status: online`
+7. Open `http://127.0.0.1:8000/api/runtime/processing/`
+8. Confirm the JSON says `worker_status: online`
 
 ## Troubleshooting
 
@@ -74,6 +79,8 @@ Expected result:
 - Check `PROCESSING_MODE=celery`
 - Check `CELERY_BROKER_URL`
 - Check `CELERY_RESULT_BACKEND`
+- Check `ALLOW_LOCAL_FILE_WORKER=True` for same-machine local Celery
+- For cloud deployment, do not use the local override; switch to `FILE_STORAGE_BACKEND=s3`
 
 ### Runtime says `offline`
 - Redis is not running
