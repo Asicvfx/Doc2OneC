@@ -11,7 +11,7 @@ services:
     plan: free
     buildCommand: ./build.sh
     preDeployCommand: python backend/manage.py migrate --noinput
-    startCommand: gunicorn --chdir backend doc2onec.wsgi:application --log-file -
+    startCommand: ./start.sh
     healthCheckPath: /health/
     envVars:
       - key: DATABASE_URL

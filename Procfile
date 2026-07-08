@@ -1,3 +1,3 @@
 release: python backend/manage.py migrate --noinput
-web: gunicorn --chdir backend doc2onec.wsgi:application
+web: ./start.sh
 worker: celery --workdir backend -A doc2onec worker -l info
