@@ -1,0 +1,44 @@
+databases:
+  - name: doc2onec-db
+    databaseName: doc2onec
+    user: doc2onec
+
+services:
+  - type: web
+    name: doc2onec-web
+    runtime: python
+    plan: starter
+    buildCommand: ./build.sh
+    preDeployCommand: python manage.py migrate --noinput
+    startCommand: gunicorn doc2onec.wsgi:application --log-file -
+    healthCheckPath: /health/
+    disk:
+      name: media
+      mountPath: /var/data
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: doc2onec-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: MEDIA_ROOT
+        value: /var/data/media
+      - key: PROCESSING_MODE
+        value: thread
+      - key: AUTO_PROCESS_ON_UPLOAD
+        value: "true"
+      - key: AI_PROVIDER
+        value: mock
+      - key: OCR_PROVIDER
+        value: disabled
+      - key: SECURE_SSL_REDIRECT
+        value: "true"
+      - key: SECURE_HSTS_SECONDS
+        value: "3600"
+      - key: SECURE_HSTS_INCLUDE_SUBDOMAINS
+        value: "true"
+      - key: SECURE_HSTS_PRELOAD
+        value: "true"

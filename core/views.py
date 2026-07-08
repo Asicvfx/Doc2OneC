@@ -1,3 +1,4 @@
+from django.db import connections
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -42,3 +43,14 @@ def dashboard(request):
 def processing_runtime_status_view(request):
     status = get_processing_runtime_status()
     return JsonResponse(status.as_dict())
+
+
+def healthcheck_view(request):
+    try:
+        with connections["default"].cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except Exception as exc:
+        return JsonResponse({"status": "error", "database": "down", "detail": str(exc)}, status=503)
+
+    return JsonResponse({"status": "ok", "database": "up"})

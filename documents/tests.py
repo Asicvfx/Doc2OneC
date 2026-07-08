@@ -5,6 +5,7 @@ from io import BytesIO, StringIO
 from unittest.mock import patch
 
 from django.core.exceptions import ImproperlyConfigured
+from django.db import connections
 from django.core.management import call_command
 from django.core.files import File
 from django.test import TestCase, override_settings
@@ -715,3 +716,28 @@ class DashboardRuntimeTests(DemoDirectoryMixin, TestCase):
         self.assertContains(response, "Processing backend")
         self.assertContains(response, "Mode: thread")
         self.assertContains(response, "Open runtime JSON")
+
+class HealthcheckTests(TestCase):
+    def test_healthcheck_endpoint_returns_ok(self):
+        response = self.client.get(reverse("healthcheck"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+        self.assertEqual(response.json()["database"], "up")
+
+    def test_healthcheck_endpoint_returns_503_when_database_is_unavailable(self):
+        original = connections["default"].cursor
+
+        def broken_cursor(*args, **kwargs):
+            raise RuntimeError("db unavailable")
+
+        connections["default"].cursor = broken_cursor
+        try:
+            response = self.client.get(reverse("healthcheck"))
+        finally:
+            connections["default"].cursor = original
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["status"], "error")
+        self.assertEqual(response.json()["database"], "down")
+        self.assertIn("db unavailable", response.json()["detail"])

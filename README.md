@@ -292,6 +292,14 @@ Work types:
 
 It also refreshes the sample files in `sample_documents/`.
 
+## Render Deployment Notes
+
+The current safest Render deployment is a single Django web service with Postgres and a persistent disk, using `PROCESSING_MODE=thread`.
+
+Why: Render persistent disks are attached to a single service, so the current local-file upload flow is not yet safe for a separate Celery worker. A full web + worker Render architecture becomes correct after the future shared-storage stage.
+
+Detailed guide: `docs/render_deploy.md`
+
 ## Deployment Notes
 
 Included deploy-friendly files:
@@ -334,7 +342,7 @@ Deployment commands:
 
 ## Future Stages
 
-- Add Redis-backed retry policy and queue separation
+- Add shared object storage for uploads, then switch Render deploys to web + worker + Key Value
 - Add true 1C OData/API integration
 - Add richer review guidance and field suggestions
 - Add authentication/roles for production use

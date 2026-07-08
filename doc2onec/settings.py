@@ -17,6 +17,8 @@ env = environ.Env(
     SECURE_HSTS_PRELOAD=(bool, False),
     CELERY_TASK_ALWAYS_EAGER=(bool, False),
     CELERY_TASK_EAGER_PROPAGATES=(bool, True),
+    REDIS_PORT=(int, 6379),
+    REDIS_DB=(int, 0),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -24,6 +26,13 @@ SECRET_KEY = env("SECRET_KEY", default="").strip() or "dev-only-doc2onec-secret-
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+render_external_hostname = env("RENDER_EXTERNAL_HOSTNAME", default="").strip()
+if render_external_hostname and render_external_hostname not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_external_hostname)
+render_external_origin = f"https://{render_external_hostname}" if render_external_hostname else ""
+if render_external_origin and render_external_origin not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(render_external_origin)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -93,7 +102,7 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -106,7 +115,14 @@ OCR_MODEL = env("OCR_MODEL", default=AI_MODEL)
 OCR_TIMEOUT = env("OCR_TIMEOUT")
 OCR_MAX_PDF_PAGES = env("OCR_MAX_PDF_PAGES")
 PROCESSING_MODE = env("PROCESSING_MODE", default="thread")
-CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="")
+REDIS_SCHEME = env("REDIS_SCHEME", default="redis")
+REDIS_HOST = env("REDIS_HOST", default="").strip()
+REDIS_PORT = env("REDIS_PORT")
+REDIS_DB = env("REDIS_DB")
+REDIS_PASSWORD = env("REDIS_PASSWORD", default="")
+redis_credentials = f":{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
+redis_url = f"{REDIS_SCHEME}://{redis_credentials}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" if REDIS_HOST else ""
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default=env("REDIS_URL", default=redis_url))
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
 CELERY_TASK_ALWAYS_EAGER = env("CELERY_TASK_ALWAYS_EAGER")
 CELERY_TASK_EAGER_PROPAGATES = env("CELERY_TASK_EAGER_PROPAGATES")
@@ -142,6 +158,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF = True

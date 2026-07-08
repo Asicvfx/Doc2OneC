@@ -5,7 +5,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from core.views import dashboard, processing_runtime_status_view
+from core.views import dashboard, healthcheck_view, processing_runtime_status_view
 from directories.api import EmployeeViewSet, WorkObjectViewSet, WorkTypeViewSet
 from documents.api import DocumentViewSet
 
@@ -19,6 +19,7 @@ router.register("work-types", WorkTypeViewSet, basename="api-work-types")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", dashboard, name="dashboard"),
+    path("health/", healthcheck_view, name="healthcheck"),
     path("documents/", include("documents.urls")),
     path("api/", include(router.urls)),
     path("api/runtime/processing/", processing_runtime_status_view, name="processing-runtime-status"),
