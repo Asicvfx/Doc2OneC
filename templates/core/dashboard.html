@@ -8,26 +8,26 @@
   <div class="hero-grid">
     <div>
       <div class="page-kicker">Doc2OneC</div>
-      <h1 class="hero-title">Employee worklog processing for 1C</h1>
-      <p class="hero-copy mb-0">AI-assisted document processing platform for preparing employee worklog data for 1C. The demo is structured like an internal operations workspace: upload, parse, validate, review, and export with visible processing health.</p>
+      <h1 class="hero-title">Employee worklogs for 1C</h1>
+      <p class="hero-copy mb-0">Track uploaded files, review extracted fields, and export validated worklogs in one place.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="{% url 'documents:upload' %}">
           <i class="bi bi-cloud-arrow-up me-1"></i>Upload document
         </a>
         <a class="btn btn-outline-secondary" href="{% url 'documents:list' %}">
-          <i class="bi bi-folder2-open me-1"></i>Open queue
+          <i class="bi bi-folder2-open me-1"></i>Open documents
         </a>
       </div>
     </div>
     <div class="hero-side-card">
       <div>
-        <div class="hero-side-label">Operations snapshot</div>
+        <div class="hero-side-label">Documents</div>
         <div class="hero-side-value">{{ stat_cards.0.1 }}</div>
       </div>
       <div class="hero-side-list">
-        <div class="hero-side-item"><i class="bi bi-check2-circle"></i><span>Validation and review workflow built in</span></div>
-        <div class="hero-side-item"><i class="bi bi-activity"></i><span>Runtime visibility for processing mode and worker health</span></div>
-        <div class="hero-side-item"><i class="bi bi-file-earmark-code"></i><span>Structured JSON and CSV export for 1C handoff</span></div>
+        <div class="hero-side-item"><i class="bi bi-check2-circle"></i><span>Review before export</span></div>
+        <div class="hero-side-item"><i class="bi bi-activity"></i><span>Runtime status is visible</span></div>
+        <div class="hero-side-item"><i class="bi bi-file-earmark-code"></i><span>JSON and CSV downloads are ready</span></div>
       </div>
     </div>
   </div>
@@ -51,41 +51,41 @@
       <div class="panel-header">
         <div>
           <h2 class="panel-title">Processing backend</h2>
-          <p class="panel-copy">Current runtime mode and worker visibility for manual smoke checks.</p>
+          <p class="panel-copy">Current mode, worker state, and storage mode.</p>
         </div>
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'processing-runtime-status' %}" target="_blank" rel="noopener">Open runtime JSON</a>
       </div>
       <div class="status-ribbon mb-3">
-        <span class="badge text-bg-dark">Mode: {{ runtime_status.mode }}</span>
+        <span class="status-chip status-chip-dark">Mode: {{ runtime_status.mode }}</span>
         {% if runtime_status.worker_status == "online" %}
-          <span class="badge text-bg-success">Worker online</span>
+          <span class="status-chip status-chip-success">Worker online</span>
         {% elif runtime_status.worker_status == "eager" %}
-          <span class="badge text-bg-warning">Eager mode</span>
+          <span class="status-chip status-chip-warning">Eager mode</span>
         {% elif runtime_status.worker_status == "not_required" %}
-          <span class="badge text-bg-secondary">Worker not required</span>
+          <span class="status-chip status-chip-neutral">Worker not required</span>
         {% else %}
-          <span class="badge text-bg-danger">{{ runtime_status.worker_status|title }}</span>
+          <span class="status-chip status-chip-danger">{{ runtime_status.worker_status|title }}</span>
         {% endif %}
         {% if runtime_status.storage_shared %}
-          <span class="badge text-bg-success">Shared storage: {{ runtime_status.storage_backend|upper }}</span>
+          <span class="status-chip status-chip-success">Shared storage: {{ runtime_status.storage_backend|upper }}</span>
         {% else %}
-          <span class="badge text-bg-light">Local storage: {{ runtime_status.storage_backend|upper }}</span>
+          <span class="status-chip status-chip-neutral">Local storage: {{ runtime_status.storage_backend|upper }}</span>
         {% endif %}
         {% if runtime_status.local_worker_override %}
-          <span class="badge text-bg-warning text-dark">Local worker override</span>
+          <span class="status-chip status-chip-warning">Local worker override</span>
         {% endif %}
         {% if runtime_status.auto_process_on_upload %}
-          <span class="badge text-bg-primary">Auto-process on upload</span>
+          <span class="status-chip status-chip-info">Auto process on upload</span>
         {% else %}
-          <span class="badge text-bg-light">Manual process trigger</span>
+          <span class="status-chip status-chip-neutral">Manual process trigger</span>
         {% endif %}
       </div>
       <p class="mb-0">{{ runtime_status.worker_detail }}</p>
     </div>
     <div class="insight-card">
-      <div class="hero-side-label mb-2">Control surface</div>
+      <div class="hero-side-label mb-2">Refresh</div>
       <div class="insight-card-value">{{ refresh_seconds }}s</div>
-      <p class="insight-card-copy">Auto-refresh interval while there are active processing jobs in view.</p>
+      <p class="insight-card-copy">Auto refresh while active jobs are present.</p>
     </div>
   </div>
 </section>
@@ -94,7 +94,7 @@
   <section class="live-status-banner mb-4">
     <div>
       <div class="live-status-title">Currently processing {{ active_processing_count }} document{{ active_processing_count|pluralize }}</div>
-      <p class="mb-0">This dashboard refreshes automatically every {{ refresh_seconds }} seconds while queued or running documents are still active.</p>
+      <p class="mb-0">This page refreshes every {{ refresh_seconds }} seconds while jobs are active.</p>
     </div>
     <a class="btn btn-outline-primary btn-sm" href="{% url 'documents:list' %}?status=queued">Watch queue</a>
   </section>
@@ -102,18 +102,18 @@
 
 <section class="workflow-strip mb-4">
   <div class="workflow-step"><span class="workflow-step-index">1</span><span class="workflow-step-label">Upload</span></div>
-  <div class="workflow-step"><span class="workflow-step-index">2</span><span class="workflow-step-label">Parse/OCR</span></div>
-  <div class="workflow-step"><span class="workflow-step-index">3</span><span class="workflow-step-label">AI extraction</span></div>
-  <div class="workflow-step"><span class="workflow-step-index">4</span><span class="workflow-step-label">JSON</span></div>
-  <div class="workflow-step"><span class="workflow-step-index">5</span><span class="workflow-step-label">Validation</span></div>
-  <div class="workflow-step"><span class="workflow-step-index">6</span><span class="workflow-step-label">Export for 1C</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">2</span><span class="workflow-step-label">Parse</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">3</span><span class="workflow-step-label">Extract</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">4</span><span class="workflow-step-label">Normalize</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">5</span><span class="workflow-step-label">Validate</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">6</span><span class="workflow-step-label">Export</span></div>
 </section>
 
 <section class="content-panel">
   <div class="panel-header">
     <div>
       <h2 class="panel-title">Recent documents</h2>
-      <p class="panel-copy">Latest uploads and their current readiness state.</p>
+      <p class="panel-copy">Latest uploads and current status.</p>
     </div>
     <a class="btn btn-outline-secondary btn-sm" href="{% url 'documents:list' %}">View all</a>
   </div>
@@ -155,7 +155,7 @@
     <div class="empty-state">
       <i class="bi bi-file-earmark-arrow-up"></i>
       <div class="empty-state-title">No documents yet</div>
-      <p class="mb-2">Start by uploading a worklog file to see the full extraction and review flow.</p>
+      <p class="mb-2">Upload the first worklog file to start the flow.</p>
       <a class="btn btn-primary btn-sm" href="{% url 'documents:upload' %}">Upload first document</a>
     </div>
   {% endif %}

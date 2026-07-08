@@ -8,7 +8,7 @@
   <div>
     <div class="page-kicker">Document operations</div>
     <h1 class="h3 mb-1">Documents</h1>
-    <p class="text-muted mb-0">Uploaded employee work reports and their 1C readiness status.</p>
+    <p class="text-muted mb-0">Uploaded files and their current 1C status.</p>
   </div>
   <a class="btn btn-primary" href="{% url 'documents:upload' %}">
     <i class="bi bi-cloud-arrow-up me-1"></i>Upload document
@@ -17,19 +17,19 @@
 
 <section class="insight-grid mb-4">
   <div class="insight-card">
-    <div class="hero-side-label mb-2">Visible records</div>
+    <div class="hero-side-label mb-2">Visible</div>
     <div class="insight-card-value">{{ page.paginator.count }}</div>
-    <p class="insight-card-copy">Documents matching the current filters.</p>
+    <p class="insight-card-copy">Rows matching the current filters.</p>
   </div>
   <div class="insight-card">
-    <div class="hero-side-label mb-2">Status scope</div>
+    <div class="hero-side-label mb-2">Status</div>
     <div class="insight-card-value">{% if selected_status %}1{% else %}All{% endif %}</div>
-    <p class="insight-card-copy">{% if selected_status %}Filtered to a single operational state.{% else %}Viewing every document state in the workspace.{% endif %}</p>
+    <p class="insight-card-copy">{% if selected_status %}Single status filter is active.{% else %}All statuses are visible.{% endif %}</p>
   </div>
   <div class="insight-card">
-    <div class="hero-side-label mb-2">Search term</div>
+    <div class="hero-side-label mb-2">Search</div>
     <div class="insight-card-value">{% if query %}1{% else %}0{% endif %}</div>
-    <p class="insight-card-copy">{% if query %}Search filter is active for this list.{% else %}No text search filter is active.{% endif %}</p>
+    <p class="insight-card-copy">{% if query %}Text filter is active.{% else %}No text filter is active.{% endif %}</p>
   </div>
 </section>
 
@@ -37,7 +37,7 @@
   <section class="live-status-banner mb-4">
     <div>
       <div class="live-status-title">Processing watch: {{ active_processing_count }} active document{{ active_processing_count|pluralize }}</div>
-      <p class="mb-0">This list refreshes automatically every {{ refresh_seconds }} seconds while the current results still contain queued or running documents.</p>
+      <p class="mb-0">This list refreshes every {{ refresh_seconds }} seconds while active jobs are visible.</p>
     </div>
     <a class="btn btn-outline-primary btn-sm" href="?status=queued">Queued only</a>
   </section>
@@ -47,7 +47,7 @@
   <div class="panel-header">
     <div>
       <h2 class="panel-title">Filters</h2>
-      <p class="panel-copy">Search by title or extracted text, then narrow the list by status.</p>
+      <p class="panel-copy">Search by title or extracted text, then narrow by status.</p>
     </div>
   </div>
   <form class="filter-grid" method="get">
@@ -76,7 +76,7 @@
   <div class="panel-header">
     <div>
       <h2 class="panel-title">Document register</h2>
-      <p class="panel-copy">Operational list of uploaded files and their current processing state.</p>
+      <p class="panel-copy">Current document queue.</p>
     </div>
   </div>
   {% if page.object_list %}
@@ -132,7 +132,7 @@
     <div class="empty-state">
       <i class="bi bi-inboxes"></i>
       <div class="empty-state-title">No matching documents</div>
-      <p class="mb-2">Try clearing the filters or upload a new file to populate the register.</p>
+      <p class="mb-2">Clear filters or upload a new file.</p>
       <a class="btn btn-primary btn-sm" href="{% url 'documents:upload' %}">Upload document</a>
     </div>
   {% endif %}

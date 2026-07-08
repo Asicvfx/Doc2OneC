@@ -20,7 +20,7 @@
           <span class="brand-mark">D1</span>
           <span>
             <span class="sidebar-brand-name">Doc2OneC</span>
-            <span class="sidebar-brand-subtitle">Internal operations demo</span>
+            <span class="sidebar-brand-subtitle">1C document workspace</span>
           </span>
         </a>
       </div>
@@ -49,9 +49,14 @@
       <div class="sidebar-note-card">
         <div class="sidebar-note-icon"><i class="bi bi-shield-check"></i></div>
         <div>
-          <div class="sidebar-note-title">Processing workspace</div>
-          <p class="sidebar-note-text mb-0">Structured extraction, review workflow, and export readiness for 1C operations.</p>
+          <div class="sidebar-note-title">Worklog flow</div>
+          <p class="sidebar-note-text mb-0">Upload, process, review, and export worklog data for 1C.</p>
         </div>
+      </div>
+
+      <div class="sidebar-status-card">
+        <div class="sidebar-status-label">Flow</div>
+        <div class="sidebar-status-value">Upload -> Review -> Export</div>
       </div>
 
       <a class="btn btn-primary sidebar-cta" href="{% url 'documents:upload' %}">
@@ -63,8 +68,8 @@
     <div class="app-main">
       <header class="app-topbar">
         <div>
-          <div class="app-eyebrow">Internal B2B SaaS demo</div>
-          <div class="app-topbar-title">Document processing cockpit</div>
+          <div class="app-eyebrow">Internal workspace</div>
+          <div class="app-topbar-title">Document operations</div>
         </div>
         <div class="app-topbar-actions">
           <a class="btn btn-outline-secondary btn-sm d-lg-none" href="{% url 'documents:upload' %}">

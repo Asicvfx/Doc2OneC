@@ -24,9 +24,20 @@
     <section class="next-step next-step-{{ next_step.variant }}">
       <div class="next-step-icon"><i class="bi {{ next_step.icon }}"></i></div>
       <div>
-        <div class="small text-uppercase fw-semibold mb-1">Next step</div>
+        <div class="small text-uppercase fw-semibold mb-1">Next action</div>
         <h2 class="h5 mb-1">{{ next_step.title }}</h2>
         <p class="mb-0">{{ next_step.message }}</p>
+      </div>
+    </section>
+
+    <section class="detail-stat-grid">
+      <div class="detail-stat-card">
+        <div class="detail-stat-label">Status</div>
+        <div class="detail-stat-value">{% include "partials/status_badge.html" with document=document %}</div>
+      </div>
+      <div class="detail-stat-card">
+        <div class="detail-stat-label">Errors</div>
+        <div class="detail-stat-number">{{ document.validation_errors|length|default:0 }}</div>
       </div>
     </section>
 
@@ -34,7 +45,7 @@
       <div class="panel-header">
         <div>
           <h2 class="panel-title">Document info</h2>
-          <p class="panel-copy">Source file metadata and operator actions.</p>
+          <p class="panel-copy">Source file metadata and actions.</p>
         </div>
       </div>
       <dl class="detail-list">
@@ -94,7 +105,7 @@
       <div class="panel-header">
         <div>
           <h2 class="panel-title">Processing logs</h2>
-          <p class="panel-copy">Timeline of pipeline events for this document.</p>
+          <p class="panel-copy">Pipeline events for this document.</p>
         </div>
       </div>
       {% if document.logs.all %}
@@ -137,7 +148,7 @@
       <div class="panel-header">
         <div>
           <h2 class="panel-title">Validation</h2>
-          <p class="panel-copy">Backend checks required fields, ranges, and directory matches.</p>
+          <p class="panel-copy">Checks for required fields and export readiness.</p>
         </div>
         <a class="btn btn-outline-primary btn-sm" href="{% url 'documents:review' document.pk %}">
           <i class="bi bi-pencil-square me-1"></i>Edit data
@@ -151,20 +162,20 @@
       {% elif document.validation_errors %}
         <div class="validation-summary validation-warning mb-3">
           <i class="bi bi-exclamation-triangle"></i>
-          <span>{{ document.validation_errors|length }} validation issue(s) need attention before export.</span>
+          <span>{{ document.validation_errors|length }} issue(s) must be fixed before export.</span>
         </div>
-        <div class="list-group">
+        <div class="validation-list">
           {% for error in document.validation_errors %}
-            <div class="list-group-item">
-              <span class="badge text-bg-warning me-2">{{ error.field }}</span>
-              {{ error.message }}
+            <div class="validation-item">
+              <span class="validation-field">{{ error.field }}</span>
+              <span>{{ error.message }}</span>
             </div>
           {% endfor %}
         </div>
       {% else %}
         <div class="validation-summary validation-success">
           <i class="bi bi-shield-check"></i>
-          <span>No validation errors. Data is ready for export when status is Ready for 1C.</span>
+          <span>No validation errors. The document is ready when status is Ready for 1C.</span>
         </div>
       {% endif %}
     </div>
@@ -173,7 +184,7 @@
       <div class="code-panel-header">
         <div>
           <h2 class="panel-title mb-1">Extracted text</h2>
-          <p class="panel-copy">Source text prepared by parsing or OCR.</p>
+          <p class="panel-copy">Parsed source text.</p>
         </div>
         <div class="code-panel-label"><i class="bi bi-file-text"></i>Raw text output</div>
       </div>
@@ -188,7 +199,7 @@
       <div class="code-panel-header">
         <div>
           <h2 class="panel-title mb-1">Normalized JSON</h2>
-          <p class="panel-copy">Stable structured payload prepared for validation and export.</p>
+          <p class="panel-copy">Structured payload for review and export.</p>
         </div>
         <div class="code-panel-label"><i class="bi bi-braces"></i>Structured output</div>
       </div>

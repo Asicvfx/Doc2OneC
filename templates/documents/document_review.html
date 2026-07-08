@@ -5,8 +5,9 @@
 {% block content %}
 <section class="page-heading">
   <div>
+    <div class="page-kicker">Manual review</div>
     <h1 class="h3 mb-1">Review extracted data</h1>
-    <div class="d-flex gap-2 align-items-center">
+    <div class="detail-header-meta">
       <span class="fw-semibold">{{ document.title }}</span>
       {% include "partials/status_badge.html" with document=document %}
     </div>
@@ -16,10 +17,15 @@
   </a>
 </section>
 
-<div class="row g-4">
-  <section class="col-lg-7">
+<div class="detail-layout review-layout">
+  <section>
     <div class="content-panel">
-      <h2 class="h5 mb-3">Worklog fields</h2>
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Worklog fields</h2>
+          <p class="panel-copy">Check the extracted values and save changes.</p>
+        </div>
+      </div>
       <form method="post" novalidate>
         {% csrf_token %}
         <div class="row g-3">
@@ -54,7 +60,7 @@
             {% for error in form.comment.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
           </div>
         </div>
-        <div class="d-flex gap-2 mt-4">
+        <div class="d-flex flex-wrap gap-2 mt-4">
           <button class="btn btn-primary" type="submit">
             <i class="bi bi-check2-circle me-1"></i>Save review
           </button>
@@ -64,27 +70,50 @@
     </div>
   </section>
 
-  <aside class="col-lg-5">
+  <aside class="detail-sidebar">
+    <section class="next-step {% if document.validation_errors %}next-step-warning{% else %}next-step-done{% endif %}">
+      <div class="next-step-icon">
+        <i class="bi {% if document.validation_errors %}bi-pencil-square{% else %}bi-check2-circle{% endif %}"></i>
+      </div>
+      <div>
+        <div class="small text-uppercase fw-semibold mb-1">Review state</div>
+        <h2 class="h5 mb-1">{% if document.validation_errors %}Needs fixes{% else %}Ready to export{% endif %}</h2>
+        <p class="mb-0">{% if document.validation_errors %}Update the fields below and save the review.{% else %}No validation issues are open right now.{% endif %}</p>
+      </div>
+    </section>
+
     <div class="content-panel mb-4">
-      <h2 class="h5 mb-3">Current validation</h2>
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Current validation</h2>
+          <p class="panel-copy">Issues that still block export.</p>
+        </div>
+      </div>
       {% if document.validation_errors %}
-        <div class="list-group">
+        <div class="validation-list">
           {% for error in document.validation_errors %}
-            <div class="list-group-item">
-              <span class="badge text-bg-warning me-2">{{ error.field }}</span>
-              {{ error.message }}
+            <div class="validation-item">
+              <span class="validation-field">{{ error.field }}</span>
+              <span>{{ error.message }}</span>
             </div>
           {% endfor %}
         </div>
       {% else %}
-        <div class="alert alert-success mb-0">
-          <i class="bi bi-shield-check me-1"></i>Current data has no validation errors.
+        <div class="validation-summary validation-success mb-0">
+          <i class="bi bi-shield-check"></i>
+          <span>Current data has no validation errors.</span>
         </div>
       {% endif %}
     </div>
 
     <div class="content-panel">
-      <h2 class="h5 mb-3">Current JSON</h2>
+      <div class="code-panel-header">
+        <div>
+          <h2 class="panel-title mb-1">Current JSON</h2>
+          <p class="panel-copy">Structured data that will be exported.</p>
+        </div>
+        <div class="code-panel-label"><i class="bi bi-braces"></i>Preview</div>
+      </div>
       <pre class="code-block">{{ normalized_json_pretty }}</pre>
     </div>
   </aside>
