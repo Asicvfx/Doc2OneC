@@ -20,7 +20,7 @@ This repository is a modular monolith. The codebase is still MVP-sized, but the 
 - drf-spectacular for OpenAPI and Swagger
 - SQLite for local demo
 - PostgreSQL via `DATABASE_URL`
-- Django templates and Bootstrap 5
+- Django templates and Bootstrap 5 (stored in `frontend/`)
 - `openpyxl` for XLSX parsing
 - `pypdf` for text PDFs
 - `PyMuPDF` for scanned PDF rendering before OCR
@@ -46,7 +46,11 @@ This repository is a modular monolith. The codebase is still MVP-sized, but the 
 
 ## Project structure
 
-Apps:
+- `backend/` - Django apps, settings, `manage.py`, and Python dependencies
+- `frontend/` - templates and static assets
+- `docs/` - setup and deployment guides
+
+Django apps:
 
 - `core` - dashboard, healthcheck, shared views
 - `documents` - model, web UI, API, processing flow, review, export, Celery entrypoint
@@ -127,11 +131,11 @@ Windows PowerShell:
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 copy .env.example .env
-python manage.py migrate
-python manage.py seed_demo_data
-python manage.py runserver
+python backend/manage.py migrate
+python backend/manage.py seed_demo_data
+python backend/manage.py runserver
 ```
 
 macOS or Linux:
@@ -139,11 +143,11 @@ macOS or Linux:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 cp .env.example .env
-python manage.py migrate
-python manage.py seed_demo_data
-python manage.py runserver
+python backend/manage.py migrate
+python backend/manage.py seed_demo_data
+python backend/manage.py runserver
 ```
 
 Useful local URLs:
@@ -214,7 +218,7 @@ AUTO_PROCESS_ON_UPLOAD=true
 Run only Django:
 
 ```bash
-python manage.py runserver
+python backend/manage.py runserver
 ```
 
 ### Mode 2: real Celery worker
@@ -246,8 +250,8 @@ AUTO_PROCESS_ON_UPLOAD=true
 Then run Django and the worker in separate terminals:
 
 ```bash
-python manage.py runserver
-celery -A doc2onec worker -l info
+python backend/manage.py runserver
+celery --workdir backend -A doc2onec worker -l info
 ```
 
 Windows helper files:
@@ -277,7 +281,7 @@ Browser or API checks:
 CLI check:
 
 ```bash
-python manage.py check_processing_runtime
+python backend/manage.py check_processing_runtime
 ```
 
 In `thread` mode you should usually see `worker_status: not_required`.
@@ -338,33 +342,33 @@ Included deploy-friendly files:
 
 - `Procfile`
 - `runtime.txt`
-- `requirements.txt`
+- `backend/requirements.txt`
 - `build.sh`
 - `render.yaml`
 - `render.free.yaml`
 
 Process commands:
 
-- Release: `python manage.py migrate --noinput`
-- Web: `gunicorn doc2onec.wsgi:application`
-- Worker: `celery -A doc2onec worker -l info`
-- Static: `python manage.py collectstatic --noinput`
+- Release: `python backend/manage.py migrate --noinput`
+- Web: `gunicorn --chdir backend doc2onec.wsgi:application`
+- Worker: `celery --workdir backend -A doc2onec worker -l info`
+- Static: `python backend/manage.py collectstatic --noinput`
 
 ## Verification commands
 
 Run these before demoing or deploying:
 
 ```bash
-python manage.py check
-python manage.py makemigrations --check --dry-run
-python manage.py spectacular --file schema.yml --validate
-python manage.py test
-python manage.py collectstatic --noinput
+python backend/manage.py check
+python backend/manage.py makemigrations --check --dry-run
+python backend/manage.py spectacular --file schema.yml --validate
+python backend/manage.py test
+python backend/manage.py collectstatic --noinput
 ```
 
 ## Demo data
 
-`python manage.py seed_demo_data` creates demo employees, work objects, work types, and refreshes files in `sample_documents/`.
+`python backend/manage.py seed_demo_data` creates demo employees, work objects, work types, and refreshes files in `sample_documents/`.
 
 ## Next production stages
 
@@ -374,3 +378,7 @@ python manage.py collectstatic --noinput
 - retry policies and queue split
 - richer review suggestions
 - machine-to-machine ingestion keys
+
+
+
+

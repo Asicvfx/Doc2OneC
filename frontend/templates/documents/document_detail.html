@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.title }} - Doc2OneC{% endblock %}
+
+{% block content %}
+{% if processing_active %}<meta http-equiv="refresh" content="5">{% endif %}
+<section class="page-heading">
+  <div>
+    <div class="page-kicker">Document workspace</div>
+    <h1 class="h3 mb-1">{{ document.title }}</h1>
+    <div class="detail-header-meta">
+      {% include "partials/status_badge.html" with document=document %}
+      <span class="doc-meta-pill"><i class="bi bi-file-earmark-text"></i>{{ document.file_type|upper }}</span>
+      <span class="text-muted small">Created {{ document.created_at|date:"Y-m-d H:i" }}</span>
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'documents:list' %}">
+    <i class="bi bi-arrow-left me-1"></i>Documents
+  </a>
+</section>
+
+<div class="detail-layout">
+  <aside class="detail-sidebar">
+    <section class="next-step next-step-{{ next_step.variant }}">
+      <div class="next-step-icon"><i class="bi {{ next_step.icon }}"></i></div>
+      <div>
+        <div class="small text-uppercase fw-semibold mb-1">Next action</div>
+        <h2 class="h5 mb-1">{{ next_step.title }}</h2>
+        <p class="mb-0">{{ next_step.message }}</p>
+      </div>
+    </section>
+
+    <section class="detail-stat-grid">
+      <div class="detail-stat-card">
+        <div class="detail-stat-label">Status</div>
+        <div class="detail-stat-value">{% include "partials/status_badge.html" with document=document %}</div>
+      </div>
+      <div class="detail-stat-card">
+        <div class="detail-stat-label">Errors</div>
+        <div class="detail-stat-number">{{ document.validation_errors|length|default:0 }}</div>
+      </div>
+    </section>
+
+    <section class="content-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Document info</h2>
+          <p class="panel-copy">Source file metadata and actions.</p>
+        </div>
+      </div>
+      <dl class="detail-list">
+        <dt>File type</dt>
+        <dd>{{ document.file_type|upper }}</dd>
+        <dt>Original file</dt>
+        <dd><a href="{{ document.file.url }}" target="_blank" rel="noopener">{{ document.file.name }}</a></dd>
+        <dt>Updated</dt>
+        <dd>{{ document.updated_at|date:"Y-m-d H:i" }}</dd>
+      </dl>
+      <div class="action-stack">
+        <form method="post" action="{% url 'documents:process' document.pk %}">
+          {% csrf_token %}
+          {% if processing_active %}
+            <button class="btn btn-primary" type="button" disabled>
+              <i class="bi bi-hourglass-split me-1"></i>Processing queued
+            </button>
+          {% else %}
+            <button class="btn btn-primary" type="submit">
+              {% if document.status == "failed" %}
+                <i class="bi bi-arrow-clockwise me-1"></i>Retry processing
+              {% else %}
+                <i class="bi bi-play-circle me-1"></i>Run processing
+              {% endif %}
+            </button>
+          {% endif %}
+        </form>
+        <a class="btn btn-outline-primary" href="{% url 'documents:review' document.pk %}">
+          <i class="bi bi-pencil-square me-1"></i>Review / Edit data
+        </a>
+        <a class="btn btn-outline-primary" href="{% url 'documents:export_json' document.pk %}">
+          <i class="bi bi-filetype-json me-1"></i>Download JSON
+        </a>
+        <a class="btn btn-outline-primary" href="{% url 'documents:export_csv' document.pk %}">
+          <i class="bi bi-filetype-csv me-1"></i>Download CSV
+        </a>
+        <form method="post" action="{% url 'documents:mark_exported' document.pk %}">
+          {% csrf_token %}
+          {% if document.status == "exported" %}
+            <button class="btn btn-outline-secondary" type="button" disabled>
+              <i class="bi bi-check2-circle me-1"></i>Already exported
+            </button>
+          {% elif can_mark_exported %}
+            <button class="btn btn-outline-secondary" type="submit">
+              <i class="bi bi-check2-circle me-1"></i>Mark as exported
+            </button>
+          {% else %}
+            <button class="btn btn-outline-secondary" type="button" disabled>
+              <i class="bi bi-lock me-1"></i>Export requires ready status
+            </button>
+          {% endif %}
+        </form>
+      </div>
+    </section>
+
+    <section class="content-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Processing logs</h2>
+          <p class="panel-copy">Pipeline events for this document.</p>
+        </div>
+      </div>
+      {% if document.logs.all %}
+        <ol class="timeline">
+          {% for log in document.logs.all %}
+            <li class="timeline-item timeline-{{ log.level }}">
+              <div class="small text-muted">{{ log.created_at|date:"Y-m-d H:i:s" }}</div>
+              <div class="timeline-step">{{ log.step }}</div>
+              <div class="timeline-copy">{{ log.message }}</div>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="text-muted mb-0">Processing has not been started yet.</p>
+      {% endif %}
+    </section>
+  </aside>
+
+  <section>
+    {% if processing_issue %}
+      <div class="content-panel mb-4 processing-issue-panel">
+        <div class="processing-issue-heading mb-3">
+          <span class="processing-issue-icon"><i class="bi bi-exclamation-triangle"></i></span>
+          <div>
+            <h2 class="h5 mb-1">{{ processing_issue.title }}</h2>
+            <p class="mb-0">{{ processing_issue.message }}</p>
+          </div>
+        </div>
+        <div class="processing-issue-detail">{{ processing_issue.detail }}</div>
+        <form class="mt-3" method="post" action="{% url 'documents:process' document.pk %}">
+          {% csrf_token %}
+          <button class="btn btn-danger" type="submit">
+            <i class="bi bi-arrow-clockwise me-1"></i>{{ processing_issue.retry_label }}
+          </button>
+        </form>
+      </div>
+    {% endif %}
+
+    <div class="content-panel mb-4">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Validation</h2>
+          <p class="panel-copy">Checks for required fields and export readiness.</p>
+        </div>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'documents:review' document.pk %}">
+          <i class="bi bi-pencil-square me-1"></i>Edit data
+        </a>
+      </div>
+      {% if processing_issue %}
+        <div class="validation-summary validation-warning">
+          <i class="bi bi-hourglass-split"></i>
+          <span>Validation will continue after processing succeeds.</span>
+        </div>
+      {% elif document.validation_errors %}
+        <div class="validation-summary validation-warning mb-3">
+          <i class="bi bi-exclamation-triangle"></i>
+          <span>{{ document.validation_errors|length }} issue(s) must be fixed before export.</span>
+        </div>
+        <div class="validation-list">
+          {% for error in document.validation_errors %}
+            <div class="validation-item">
+              <span class="validation-field">{{ error.field }}</span>
+              <span>{{ error.message }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="validation-summary validation-success">
+          <i class="bi bi-shield-check"></i>
+          <span>No validation errors. The document is ready when status is Ready for 1C.</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="content-panel mb-4">
+      <div class="code-panel-header">
+        <div>
+          <h2 class="panel-title mb-1">Extracted text</h2>
+          <p class="panel-copy">Parsed source text.</p>
+        </div>
+        <div class="code-panel-label"><i class="bi bi-file-text"></i>Raw text output</div>
+      </div>
+      {% if document.extracted_text %}
+        <pre class="code-block">{{ document.extracted_text }}</pre>
+      {% else %}
+        <p class="text-muted mb-0">No extracted text yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="content-panel">
+      <div class="code-panel-header">
+        <div>
+          <h2 class="panel-title mb-1">Normalized JSON</h2>
+          <p class="panel-copy">Structured payload for review and export.</p>
+        </div>
+        <div class="code-panel-label"><i class="bi bi-braces"></i>Structured output</div>
+      </div>
+      <pre class="code-block">{{ normalized_json_pretty }}</pre>
+    </div>
+  </section>
+</div>
+{% endblock %}

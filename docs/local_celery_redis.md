@@ -12,7 +12,7 @@ Use this if you already have Redis installed locally or through WSL.
 2. Start Redis on `localhost:6379`
 3. Start Django:
    ```powershell
-   .\.venv\Scripts\python.exe manage.py runserver
+   .\.venv\Scripts\python.exe .\backend\manage.py runserver
    ```
 4. Start the worker in another terminal:
    ```powershell
@@ -43,7 +43,7 @@ Use this if you do not want to install Redis directly on Windows.
    ```
 4. Start Django:
    ```powershell
-   .\.venv\Scripts\python.exe manage.py runserver
+   .\.venv\Scripts\python.exe .\backend\manage.py runserver
    ```
 5. Start the worker in another terminal:
    ```powershell
@@ -90,3 +90,4 @@ Expected result:
 ### Runtime says `eager`
 - `CELERY_TASK_ALWAYS_EAGER=True`
 - This is okay for code-path checks, but it is not real async background processing
+

@@ -67,8 +67,8 @@ Because the backend is S3-compatible, you can use:
 2. Fill in bucket credentials and endpoint values
 3. Run:
    ```powershell
-   .\.venv\Scripts\python.exe manage.py check
-   .\.venv\Scripts\python.exe manage.py runserver
+   .\.venv\Scripts\python.exe .\backend\manage.py check
+   .\.venv\Scripts\python.exe .\backend\manage.py runserver
    ```
 4. Upload a sample document
 5. Confirm the uploaded document still processes
@@ -88,4 +88,5 @@ After this stage:
 - runtime checks expose storage safety directly
 - Celery worker mode refuses unsafe filesystem-based separate-worker setups unless you explicitly opt into same-machine local development with `ALLOW_LOCAL_FILE_WORKER=True`
 - web + worker deployment rules are clearer for real hosting
+
 
