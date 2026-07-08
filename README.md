@@ -153,6 +153,15 @@ Open locally:
 - Swagger UI: http://127.0.0.1:8000/api/docs/
 - OpenAPI schema: http://127.0.0.1:8000/api/schema/
 
+## Local Celery Bootstrap Files
+
+Useful files for local Redis + Celery setup:
+
+- `.env.celery.example`
+- `docker-compose.redis.yml`
+- `scripts/dev_celery_worker.ps1`
+- `scripts/dev_runtime_check.ps1`
+- `docs/local_celery_redis.md`
 ## Running Modes
 
 ### Mode 1: Simple local demo
@@ -206,7 +215,7 @@ python manage.py runserver
 celery -A doc2onec worker -l info
 ```
 
-If you do not want Docker, install Redis directly on your machine or run it through WSL. Docker is optional, not required by the project.
+If you do not want Docker, install Redis directly on your machine or run it through WSL. Docker is optional, not required by the project. A complete Windows-friendly step-by-step guide is in `docs/local_celery_redis.md`.
 
 ### Mode 3: Celery code-path check without Redis
 
