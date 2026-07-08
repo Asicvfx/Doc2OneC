@@ -14,16 +14,25 @@ class Command(BaseCommand):
             "Ivanov Ivan",
             "Petrov Sergey",
             "Sidorov Aleksei",
+            "Иванов Иван",
+            "Петров Сергей",
+            "Сидоров Алексей",
         ]
         work_objects = [
             "Object No. 1",
             "Object No. 2",
             "Astana-1",
+            "Объект №1",
+            "Объект №2",
+            "Астана-1",
         ]
         work_types = [
             "Electrical installation work",
             "Cable installation",
             "Technical maintenance",
+            "Электромонтажные работы",
+            "Монтаж кабеля",
+            "Техническое обслуживание",
         ]
 
         for full_name in employees:
@@ -36,12 +45,23 @@ class Command(BaseCommand):
         sample_dir = Path(settings.PROJECT_ROOT) / "sample_documents"
         sample_dir.mkdir(parents=True, exist_ok=True)
 
-        sample_text = (
+        sample_text_ru = (
+            "Иванов Иван 2026-07-06 Объект №1 "
+            "Электромонтажные работы 8 часов Монтаж кабеля"
+        )
+        sample_text_en = (
             "Ivanov Ivan 2026-07-06 Object No. 1 "
             "Electrical installation work 8 hours Cable installation"
         )
-        (sample_dir / "sample_worklog.txt").write_text(sample_text, encoding="utf-8")
+
+        (sample_dir / "sample_worklog.txt").write_text(sample_text_ru, encoding="utf-8")
         (sample_dir / "sample_worklog.csv").write_text(
+            "employee_name,date,object,work_type,hours,comment\n"
+            "Иванов Иван,2026-07-06,Объект №1,Электромонтажные работы,8,Монтаж кабеля\n",
+            encoding="utf-8",
+        )
+        (sample_dir / "sample_worklog_en.txt").write_text(sample_text_en, encoding="utf-8")
+        (sample_dir / "sample_worklog_en.csv").write_text(
             "employee_name,date,object,work_type,hours,comment\n"
             "Ivanov Ivan,2026-07-06,Object No. 1,Electrical installation work,8,Cable installation\n",
             encoding="utf-8",
@@ -57,6 +77,20 @@ class Command(BaseCommand):
             sheet.title = "Worklog"
             sheet.append(["employee_name", "date", "object", "work_type", "hours", "comment"])
             sheet.append([
+                "Иванов Иван",
+                "2026-07-06",
+                "Объект №1",
+                "Электромонтажные работы",
+                8,
+                "Монтаж кабеля",
+            ])
+            workbook.save(sample_dir / "sample_worklog.xlsx")
+
+            workbook_en = Workbook()
+            sheet_en = workbook_en.active
+            sheet_en.title = "Worklog"
+            sheet_en.append(["employee_name", "date", "object", "work_type", "hours", "comment"])
+            sheet_en.append([
                 "Ivanov Ivan",
                 "2026-07-06",
                 "Object No. 1",
@@ -64,6 +98,6 @@ class Command(BaseCommand):
                 8,
                 "Cable installation",
             ])
-            workbook.save(sample_dir / "sample_worklog.xlsx")
+            workbook_en.save(sample_dir / "sample_worklog_en.xlsx")
 
         self.stdout.write(self.style.SUCCESS("Demo directories and sample files are ready."))
