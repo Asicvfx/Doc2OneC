@@ -42,6 +42,11 @@
         {% else %}
           <span class="badge text-bg-danger">{{ runtime_status.worker_status|title }}</span>
         {% endif %}
+        {% if runtime_status.storage_shared %}
+          <span class="badge text-bg-success">Shared storage: {{ runtime_status.storage_backend|upper }}</span>
+        {% else %}
+          <span class="badge text-bg-light text-dark border">Local storage: {{ runtime_status.storage_backend|upper }}</span>
+        {% endif %}
         {% if runtime_status.auto_process_on_upload %}
           <span class="badge text-bg-primary">Auto-process on upload</span>
         {% else %}

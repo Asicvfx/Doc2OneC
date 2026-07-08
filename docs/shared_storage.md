@@ -15,6 +15,7 @@ Behavior:
 - uploaded files are stored in local `MEDIA_ROOT`
 - no cloud object storage is required
 - best for local work and simple single-service demos
+- not safe for a separate Celery worker service in cloud deployment
 
 ## Mode 2: S3-compatible storage
 
@@ -40,7 +41,7 @@ AWS_S3_OBJECT_PARAMETERS={"CacheControl":"max-age=86400"}
 Behavior:
 - uploaded files are stored in an S3-compatible bucket
 - both web and worker can read the same uploaded files
-- this unlocks a safe future web + worker deployment model
+- this is the required mode for safe separate web + Celery worker deployment
 
 ## Supported providers
 
@@ -71,16 +72,19 @@ Because the backend is S3-compatible, you can use:
    ```
 4. Upload a sample document
 5. Confirm the uploaded document still processes
-6. Confirm the document detail page shows a working file URL
+6. Open `http://127.0.0.1:8000/api/runtime/processing/`
+7. Confirm `storage_backend` is `s3` and `storage_shared` is `true`
+8. If using `PROCESSING_MODE=celery`, confirm runtime no longer reports storage misconfiguration
 
 ## Why this stage matters
 
-This stage removes the biggest architecture blocker for separate workers and cloud-safe uploads.
+This stage closes the biggest architecture gap for separate workers and cloud-safe uploads.
 
 Before this stage:
-- uploads were tied to local disk
-- multi-service deploys were fragile
+- uploads could already live in shared object storage
+- but Celery mode did not clearly guard against unsafe local-disk worker setups
 
 After this stage:
-- uploads can live in shared object storage
-- future worker mode becomes safe to implement
+- runtime checks expose storage safety directly
+- Celery worker mode refuses unsafe filesystem-based separate-worker setups
+- web + worker deployment rules are clearer for real hosting

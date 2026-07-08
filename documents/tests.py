@@ -655,11 +655,21 @@ class ProcessingModeTests(DemoDirectoryMixin, TestCase):
         on_commit_mock.assert_called_once()
         self.assertTrue(document.logs.filter(step="queue", message__icontains="Celery").exists())
 
-    @override_settings(PROCESSING_MODE="celery", CELERY_BROKER_URL="", CELERY_TASK_ALWAYS_EAGER=False)
+    @override_settings(PROCESSING_MODE="celery", FILE_STORAGE_BACKEND="s3", CELERY_BROKER_URL="", CELERY_TASK_ALWAYS_EAGER=False)
     def test_enqueue_document_processing_requires_celery_broker(self):
         document = self.create_uploaded_document()
 
         with self.assertRaisesMessage(ImproperlyConfigured, "CELERY_BROKER_URL"):
+            enqueue_document_processing(document.id, source="test")
+        document.refresh_from_db()
+
+        self.assertEqual(document.status, Document.Status.UPLOADED)
+
+    @override_settings(PROCESSING_MODE="celery", FILE_STORAGE_BACKEND="filesystem", CELERY_BROKER_URL="redis://localhost:6379/0", CELERY_TASK_ALWAYS_EAGER=False)
+    def test_enqueue_document_processing_requires_shared_storage_for_celery_worker(self):
+        document = self.create_uploaded_document()
+
+        with self.assertRaisesMessage(ImproperlyConfigured, "FILE_STORAGE_BACKEND=s3"):
             enqueue_document_processing(document.id, source="test")
         document.refresh_from_db()
 
@@ -683,16 +693,32 @@ class ProcessingRuntimeTests(DemoDirectoryMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["mode"], "thread")
+        self.assertEqual(payload["storage_backend"], "filesystem")
+        self.assertFalse(payload["storage_shared"])
         self.assertEqual(payload["worker_status"], "not_required")
         self.assertTrue(payload["auto_process_on_upload"])
 
-    @override_settings(PROCESSING_MODE="celery", CELERY_BROKER_URL="", CELERY_TASK_ALWAYS_EAGER=False)
-    def test_runtime_status_endpoint_reports_celery_misconfiguration(self):
+    @override_settings(PROCESSING_MODE="celery", FILE_STORAGE_BACKEND="filesystem", CELERY_BROKER_URL="redis://localhost:6379/0", CELERY_TASK_ALWAYS_EAGER=False)
+    def test_runtime_status_endpoint_reports_missing_shared_storage_for_celery(self):
         response = self.client.get(reverse("processing-runtime-status"))
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["mode"], "celery")
+        self.assertEqual(payload["storage_backend"], "filesystem")
+        self.assertFalse(payload["storage_shared"])
+        self.assertEqual(payload["worker_status"], "misconfigured")
+        self.assertIn("FILE_STORAGE_BACKEND=s3", payload["worker_detail"])
+
+    @override_settings(PROCESSING_MODE="celery", FILE_STORAGE_BACKEND="s3", CELERY_BROKER_URL="", CELERY_TASK_ALWAYS_EAGER=False)
+    def test_runtime_status_endpoint_reports_celery_broker_misconfiguration(self):
+        response = self.client.get(reverse("processing-runtime-status"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["mode"], "celery")
+        self.assertEqual(payload["storage_backend"], "s3")
+        self.assertTrue(payload["storage_shared"])
         self.assertEqual(payload["worker_status"], "misconfigured")
         self.assertIn("CELERY_BROKER_URL", payload["worker_detail"])
 
@@ -715,6 +741,7 @@ class DashboardRuntimeTests(DemoDirectoryMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Processing backend")
         self.assertContains(response, "Mode: thread")
+        self.assertContains(response, "Local storage: FILESYSTEM")
         self.assertContains(response, "Open runtime JSON")
 
 class HealthcheckTests(TestCase):

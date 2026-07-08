@@ -165,7 +165,7 @@ Main files:
 - `.env.s3.example`
 - `docs/shared_storage.md`
 
-Use `FILE_STORAGE_BACKEND=s3` when you want shared uploads for future web + worker deployments.
+Use `FILE_STORAGE_BACKEND=s3` when you want safe separate web + worker deployments with Celery.
 
 ## Local Celery Bootstrap Files
 
@@ -218,11 +218,14 @@ Use this when you want to test the production-style background path.
 Set in `.env`:
 
 ```env
+FILE_STORAGE_BACKEND=s3
 PROCESSING_MODE=celery
 CELERY_BROKER_URL=redis://localhost:6379/0
 CELERY_RESULT_BACKEND=redis://localhost:6379/0
 AUTO_PROCESS_ON_UPLOAD=true
 ```
+
+Important: separate Celery worker mode now requires shared storage. If you keep `FILE_STORAGE_BACKEND=filesystem`, runtime checks will show the setup as misconfigured for worker deployment.
 
 Start Redis, then run these in separate terminals:
 
@@ -319,7 +322,7 @@ If you want a no-card public demo, start with `docs/render_free_demo.md`.
 
 The current safest paid-ish Render deployment is a single Django web service with Postgres and a persistent disk, using `PROCESSING_MODE=thread`.
 
-Why: Render persistent disks are attached to a single service, so the current local-file upload flow is not yet safe for a separate Celery worker. A full web + worker Render architecture becomes correct after the future shared-storage stage.
+Why: Render persistent disks are attached to a single service, so a real web + worker deployment should use `FILE_STORAGE_BACKEND=s3`. Local filesystem mode remains fine for single-service demos.
 
 Detailed guides:
 - `docs/render_free_demo.md`
@@ -367,10 +370,9 @@ Deployment commands:
 
 ## Future Stages
 
-- Add safe web + worker deploy profile on top of shared object storage
 - Add true 1C OData/API integration
 - Add richer review guidance and field suggestions
 - Add authentication/roles for production use
-- Add S3/MinIO media storage
 - Add audit logging and retention policy
 - Add machine-to-machine ingestion API keys
+- Add queue split and retry policies for larger workloads

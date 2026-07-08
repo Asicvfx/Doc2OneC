@@ -8,6 +8,7 @@ from documents.models import Document
 from documents.tasks import process_document_task
 
 from .pipeline import process_document
+from .processing_runtime import celery_storage_is_safe
 
 
 ACTIVE_PROCESSING_STATUSES = {Document.Status.QUEUED, Document.Status.PROCESSING}
@@ -64,6 +65,11 @@ def _mark_document_queued(document: Document) -> None:
 def _validate_celery_configuration() -> None:
     if settings.CELERY_TASK_ALWAYS_EAGER:
         return
+    if not celery_storage_is_safe():
+        raise ImproperlyConfigured(
+            "PROCESSING_MODE=celery requires FILE_STORAGE_BACKEND=s3 for separate worker processing, "
+            "or enable CELERY_TASK_ALWAYS_EAGER for local checks."
+        )
     if not (settings.CELERY_BROKER_URL or "").strip():
         raise ImproperlyConfigured(
             "PROCESSING_MODE=celery requires CELERY_BROKER_URL, or enable CELERY_TASK_ALWAYS_EAGER for local checks."

@@ -11,6 +11,8 @@ from documents.models import Document
 class ProcessingRuntimeStatus:
     mode: str
     auto_process_on_upload: bool
+    storage_backend: str
+    storage_shared: bool
     broker_configured: bool
     eager: bool
     worker_status: str
@@ -20,6 +22,8 @@ class ProcessingRuntimeStatus:
         return {
             "mode": self.mode,
             "auto_process_on_upload": self.auto_process_on_upload,
+            "storage_backend": self.storage_backend,
+            "storage_shared": self.storage_shared,
             "broker_configured": self.broker_configured,
             "eager": self.eager,
             "worker_status": self.worker_status,
@@ -31,9 +35,28 @@ class ProcessingRuntimeStatus:
 ACTIVE_PROCESSING_STATUSES = [Document.Status.QUEUED, Document.Status.PROCESSING]
 
 
+def get_storage_backend() -> str:
+    return (getattr(settings, "FILE_STORAGE_BACKEND", "filesystem") or "filesystem").strip().lower()
+
+
+def is_shared_storage_enabled() -> bool:
+    return get_storage_backend() == "s3"
+
+
+def celery_requires_shared_storage() -> bool:
+    mode = (settings.PROCESSING_MODE or "thread").strip().lower()
+    return mode == "celery" and not bool(settings.CELERY_TASK_ALWAYS_EAGER)
+
+
+def celery_storage_is_safe() -> bool:
+    return not celery_requires_shared_storage() or is_shared_storage_enabled()
+
+
 def get_processing_runtime_status() -> ProcessingRuntimeStatus:
     mode = (settings.PROCESSING_MODE or "thread").strip().lower()
     auto_process = bool(settings.AUTO_PROCESS_ON_UPLOAD)
+    storage_backend = get_storage_backend()
+    storage_shared = is_shared_storage_enabled()
     broker_configured = bool((settings.CELERY_BROKER_URL or "").strip())
     eager = bool(settings.CELERY_TASK_ALWAYS_EAGER)
 
@@ -41,6 +64,8 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
         return ProcessingRuntimeStatus(
             mode=mode,
             auto_process_on_upload=auto_process,
+            storage_backend=storage_backend,
+            storage_shared=storage_shared,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="not_required",
@@ -51,6 +76,8 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
         return ProcessingRuntimeStatus(
             mode=mode,
             auto_process_on_upload=auto_process,
+            storage_backend=storage_backend,
+            storage_shared=storage_shared,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="not_required",
@@ -61,6 +88,8 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
         return ProcessingRuntimeStatus(
             mode=mode,
             auto_process_on_upload=auto_process,
+            storage_backend=storage_backend,
+            storage_shared=storage_shared,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="misconfigured",
@@ -71,16 +100,36 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
         return ProcessingRuntimeStatus(
             mode=mode,
             auto_process_on_upload=auto_process,
+            storage_backend=storage_backend,
+            storage_shared=storage_shared,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="eager",
             worker_detail="Celery eager mode is enabled. Tasks execute immediately in-process for local checks.",
         )
 
+    if not storage_shared:
+        return ProcessingRuntimeStatus(
+            mode=mode,
+            auto_process_on_upload=auto_process,
+            storage_backend=storage_backend,
+            storage_shared=storage_shared,
+            broker_configured=broker_configured,
+            eager=eager,
+            worker_status="misconfigured",
+            worker_detail=(
+                "Celery worker mode requires shared file storage. "
+                "Set FILE_STORAGE_BACKEND=s3 for separate web and worker services, "
+                "or enable CELERY_TASK_ALWAYS_EAGER for local checks."
+            ),
+        )
+
     if not broker_configured:
         return ProcessingRuntimeStatus(
             mode=mode,
             auto_process_on_upload=auto_process,
+            storage_backend=storage_backend,
+            storage_shared=storage_shared,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="misconfigured",
@@ -90,12 +139,22 @@ def get_processing_runtime_status() -> ProcessingRuntimeStatus:
     return _probe_celery_worker(
         mode=mode,
         auto_process=auto_process,
+        storage_backend=storage_backend,
+        storage_shared=storage_shared,
         broker_configured=broker_configured,
         eager=eager,
     )
 
 
-def _probe_celery_worker(*, mode: str, auto_process: bool, broker_configured: bool, eager: bool) -> ProcessingRuntimeStatus:
+def _probe_celery_worker(
+    *,
+    mode: str,
+    auto_process: bool,
+    storage_backend: str,
+    storage_shared: bool,
+    broker_configured: bool,
+    eager: bool,
+) -> ProcessingRuntimeStatus:
     try:
         from doc2onec.celery import app as celery_app
 
@@ -105,6 +164,8 @@ def _probe_celery_worker(*, mode: str, auto_process: bool, broker_configured: bo
         return ProcessingRuntimeStatus(
             mode=mode,
             auto_process_on_upload=auto_process,
+            storage_backend=storage_backend,
+            storage_shared=storage_shared,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="offline",
@@ -116,6 +177,8 @@ def _probe_celery_worker(*, mode: str, auto_process: bool, broker_configured: bo
         return ProcessingRuntimeStatus(
             mode=mode,
             auto_process_on_upload=auto_process,
+            storage_backend=storage_backend,
+            storage_shared=storage_shared,
             broker_configured=broker_configured,
             eager=eager,
             worker_status="online",
@@ -125,6 +188,8 @@ def _probe_celery_worker(*, mode: str, auto_process: bool, broker_configured: bo
     return ProcessingRuntimeStatus(
         mode=mode,
         auto_process_on_upload=auto_process,
+        storage_backend=storage_backend,
+        storage_shared=storage_shared,
         broker_configured=broker_configured,
         eager=eager,
         worker_status="offline",
