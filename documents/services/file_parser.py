@@ -12,7 +12,6 @@ from .ocr import OCR_DISABLED_MESSAGE, extract_text_from_image_file, extract_tex
 
 
 PDF_NO_TEXT_MESSAGE = "PDF text extraction found no selectable text. OCR is required for scanned PDFs."
-OCR_PLACEHOLDER = "OCR placeholder. Real OCR can be added here."
 
 
 def parse_document_file(document: Document) -> str:

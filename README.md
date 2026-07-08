@@ -1,82 +1,89 @@
 # Doc2OneC
 
-Doc2OneC is a polished Django MVP for processing employee work documents and preparing stable structured data for 1C.
+Doc2OneC is a Django MVP for processing employee worklog documents and preparing stable structured data for 1C.
 
-Companies often receive daily work reports from employees or contractors in different formats: TXT, CSV, XLSX, PDF, scanned images, or short free-form text. The same business event can be written in many ways, while 1C needs predictable fields such as employee, date, object, work type, hours, and comment.
+Companies often receive daily work reports in TXT, CSV, XLSX, PDF, scanned PDF, image, or free-form text form. The same work event can be written many different ways, while 1C expects predictable fields such as employee, date, object, work type, hours, and comment.
 
 ## Solution
 
 The platform demonstrates the full internal workflow:
 
-Upload document -> detect file type -> parse/OCR placeholder -> AI-style extraction -> normalized JSON -> backend validation -> status tracking -> JSON/CSV export for 1C -> future 1C adapter placeholder.
+Upload document -> detect file type -> parse/OCR -> AI extraction -> normalized JSON -> backend validation -> status tracking -> manual review if needed -> JSON/CSV export -> future 1C adapter boundary.
 
-This is intentionally a modular monolith: simple enough for an MVP, but organized so real OCR, LLM extraction, object review, and 1C integration can be added without rewriting the product.
+The codebase is a modular monolith: small enough for an MVP, but structured so real OCR, LLM extraction, human review, and 1C integration can evolve without a rewrite.
 
 ## Tech Stack
 
 - Python 3.12 target runtime
-- Django
+- Django 5
 - Django REST Framework
-- drf-spectacular for OpenAPI/Swagger documentation
+- drf-spectacular for OpenAPI/Swagger docs
 - SQLite for local demo
 - PostgreSQL-ready via `DATABASE_URL`
-- Django templates
-- Bootstrap 5 CDN
-- Vanilla JavaScript only through Bootstrap bundle
+- Django templates + Bootstrap 5
 - `openpyxl` for XLSX parsing
 - `pypdf` for text-based PDF extraction
-- `PyMuPDF` for rendering scanned PDF pages before OCR
-- `django-environ` for environment variables
-- `gunicorn` and `whitenoise` for deployment
+- `PyMuPDF` for scanned PDF rendering before OCR
+- `django-environ` for environment configuration
+- `openai` for optional AI extraction and OCR
+- `gunicorn` + `whitenoise` for deployment
 
 ## MVP Features
 
-- Dashboard with document status metrics
-- Document upload for TXT, CSV, XLSX, text-based PDF, scanned PDF OCR, and image OCR
+- Dashboard with live processing visibility
+- Document upload for TXT, CSV, XLSX, PDF, PNG, JPG, JPEG
 - File type detection
-- Text/table/PDF/OCR parsing
-- Mock AI-style extraction of worklog fields
+- Text, table, PDF, and OCR parsing
+- Mock and OpenAI-based extraction providers
 - Normalized JSON output
 - Directory validation against employees, work objects, and work types
-- Processing logs timeline
-- Manual review/edit workflow for normalized worklog data
+- Manual review/edit workflow
 - JSON and CSV export
-- Mock 1C adapter class
-- Django admin for directories and documents
-- DRF API endpoints and Swagger UI
+- Mock 1C adapter boundary
+- Django admin for documents and directories
+- DRF API + Swagger UI
 - Demo seed command and sample files
 
 ## Architecture
 
 Apps:
 
-- `core`: dashboard and shared product views
-- `documents`: document model, upload/list/detail/actions, processing pipeline
-- `directories`: employees, work objects, work types, and demo seed command
+- `core`: dashboard and shared product pages
+- `documents`: document model, UI, API, processing flow, review, export
+- `directories`: employees, work objects, work types, demo seed command
 
 Service layer:
 
-- `documents/services/file_detector.py`: extension-based file type detection
-- `documents/services/file_parser.py`: TXT, CSV, XLSX, text-based PDF parsing, scanned PDF rendering, and image OCR handoff
-- `documents/services/ai_extractor.py`: deterministic mock extraction
-- `documents/services/ai_provider.py`: environment-selected mock/OpenAI extraction provider
-- `documents/services/ocr.py`: OpenAI Vision OCR provider for images and scanned PDFs
+- `documents/services/file_detector.py`: extension-based type detection
+- `documents/services/file_parser.py`: TXT, CSV, XLSX, PDF, image parsing and OCR handoff
+- `documents/services/ai_provider.py`: mock/OpenAI extraction provider selection
+- `documents/services/ocr.py`: OCR provider selection and OpenAI Vision OCR
 - `documents/services/normalizer.py`: stable field cleanup and hours normalization
-- `documents/services/validator.py`: required field and directory validation
-- `documents/services/exporter.py`: JSON/CSV response generation
+- `documents/services/validator.py`: backend validation rules
+- `documents/services/manual_review.py`: review save + revalidation flow
+- `documents/services/exporter.py`: JSON/CSV exports
+- `documents/services/export_status.py`: export readiness rules
+- `documents/services/pipeline.py`: main processing pipeline
+- `documents/services/processing_jobs.py`: queue/start processing for web and API flows
+- `documents/services/processing_status.py`: user-facing processing issue summaries
 - `documents/services/one_c_adapter.py`: future 1C integration boundary
-- `documents/services/pipeline.py`: orchestrates processing and writes logs
-- `documents/services/processing_jobs.py`: queues processing for the web/API layer and can later be swapped to Celery
 
-Views are intentionally thin. Business logic lives in services so the same pipeline can later be called from Celery, an API endpoint, or a webhook.
+Views stay thin. Business rules live in services so the same flow can be called from web UI, API, and a future Celery worker.
 
-Uploads can auto-start processing through `AUTO_PROCESS_ON_UPLOAD=true`, while the manual `Run processing` action remains available for retries and controlled demos.
+## Environment
 
-## AI Provider Configuration
-
-The local MVP uses a safe deterministic provider by default:
+Local default example:
 
 ```env
+SECRET_KEY=
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+CSRF_TRUSTED_ORIGINS=
+SECURE_SSL_REDIRECT=False
+SECURE_HSTS_SECONDS=0
+SECURE_HSTS_INCLUDE_SUBDOMAINS=False
+SECURE_HSTS_PRELOAD=False
+DATABASE_URL=
 AI_PROVIDER=mock
 AI_API_KEY=
 AI_MODEL=gpt-5.5
@@ -86,14 +93,20 @@ OCR_MODEL=gpt-5.5
 OCR_TIMEOUT=30
 OCR_MAX_PDF_PAGES=3
 PROCESSING_MODE=thread
+AUTO_PROCESS_ON_UPLOAD=true
+ONE_C_BASE_URL=
+ONE_C_USERNAME=
+ONE_C_PASSWORD=
 ```
 
-Available provider values:
+Available providers:
 
-- `mock`: deterministic local extractor, no external API key required.
-- `openai`: real OpenAI Responses API extraction with structured JSON output.
+- `AI_PROVIDER=mock`: deterministic local extractor, no external API key required
+- `AI_PROVIDER=openai`: real OpenAI extraction
+- `OCR_PROVIDER=disabled`: skip OCR for images/scanned PDFs
+- `OCR_PROVIDER=openai`: use OpenAI Vision OCR
 
-To test real AI extraction locally, keep your key only in `.env` and set:
+For real AI locally:
 
 ```env
 AI_PROVIDER=openai
@@ -105,9 +118,10 @@ OCR_MODEL=gpt-5.5
 OCR_TIMEOUT=30
 OCR_MAX_PDF_PAGES=3
 PROCESSING_MODE=thread
+AUTO_PROCESS_ON_UPLOAD=true
 ```
 
-Do not paste API keys into chat or commit them to git. Automated tests use a fake OpenAI client, so they do not spend API credits.
+Keep API keys only in `.env`. Do not commit them.
 
 ## Local Setup
 
@@ -122,48 +136,42 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-On macOS/Linux, activate the environment with:
+macOS/Linux activation:
 
 ```bash
 source .venv/bin/activate
 ```
 
-Open:
+Open locally:
 
 - Dashboard: http://127.0.0.1:8000/
 - Documents: http://127.0.0.1:8000/documents/
 - Admin: http://127.0.0.1:8000/admin/
-
-
-## API and Swagger
-
-The MVP exposes a small DRF API alongside the template UI:
-
 - Swagger UI: http://127.0.0.1:8000/api/docs/
 - OpenAPI schema: http://127.0.0.1:8000/api/schema/
-- Documents API: `/api/documents/`
-- Directories API: `/api/employees/`, `/api/work-objects/`, `/api/work-types/`
 
-Useful document API actions:
+## API
 
-- `POST /api/documents/` with multipart `title` and `file`
+Main endpoints:
+
+- `POST /api/documents/`
+- `GET /api/documents/`
+- `GET /api/documents/{id}/`
 - `POST /api/documents/{id}/process/`
 - `POST /api/documents/{id}/review/`
 - `POST /api/documents/{id}/mark-exported/`
+- `GET /api/employees/`
+- `GET /api/work-objects/`
+- `GET /api/work-types/`
 
-Generate and validate the OpenAPI schema locally:
+## Checks
 
-```bash
-python manage.py spectacular --file schema.yml --validate
-```
-
-## Testing
-
-Run the automated checks before sending the demo:
+Run these before demoing or deploying:
 
 ```bash
 python manage.py check
 python manage.py makemigrations --check --dry-run
+python manage.py spectacular --file schema.yml --validate
 python manage.py test
 ```
 
@@ -171,12 +179,12 @@ python manage.py test
 
 1. Run `python manage.py seed_demo_data`.
 2. Open `/documents/upload/`.
-3. Upload `sample_documents/sample_worklog.txt`, `.csv`, or generated `.xlsx`.
-4. Open the document detail page.
-5. The document is queued automatically after upload when `AUTO_PROCESS_ON_UPLOAD=true`.
-6. If the detail page shows `Processing queued`, wait a few seconds; it auto-refreshes while processing is active.
+3. Upload `sample_documents/sample_worklog.txt`, `.csv`, or `.xlsx`.
+4. The document is queued automatically when `AUTO_PROCESS_ON_UPLOAD=true`.
+5. Open the detail page if it does not open automatically.
+6. If the document shows `Queued` or `Processing`, wait a few seconds. The detail page, dashboard, and document list auto-refresh while active processing exists.
 7. Review extracted text, normalized JSON, validation status, and processing logs.
-8. Use `Review / Edit data` if fields need manual correction.
+8. If the status is `Needs review`, open `Review / Edit data`, fix the fields, and save.
 9. Download JSON or CSV.
 10. Mark the document as exported.
 
@@ -186,60 +194,67 @@ The seed command creates:
 
 Employees:
 
-- Иванов Иван
-- Петров Сергей
-- Сидоров Алексей
+- Ivanov Ivan
+- Petrov Sergey
+- Sidorov Aleksei
 
 Work objects:
 
-- Объект №1
-- Объект №2
-- Астана-1
+- Object No. 1
+- Object No. 2
+- Astana-1
 
 Work types:
 
-- Электромонтажные работы
-- Монтаж кабеля
-- Техническое обслуживание
+- Electrical installation work
+- Cable installation
+- Technical maintenance
 
-It also creates `sample_documents/sample_worklog.xlsx` when `openpyxl` is installed.
+It also refreshes the sample files in `sample_documents/`.
 
 ## Deployment Notes
 
-The project includes Render/Railway-friendly files:
+Included deploy-friendly files:
 
 - `Procfile`
 - `runtime.txt`
 - `requirements.txt`
 - `.env.example`
-- `whitenoise` static file support
-- `gunicorn` WSGI entrypoint
-- `DATABASE_URL` support for PostgreSQL
 
-Typical production variables:
+Recommended production variables:
 
 ```env
 SECRET_KEY=change-me
 DEBUG=False
 ALLOWED_HOSTS=your-domain.com,your-app.onrender.com
+CSRF_TRUSTED_ORIGINS=https://your-domain.com,https://your-app.onrender.com
+SECURE_SSL_REDIRECT=True
+SECURE_HSTS_SECONDS=3600
+SECURE_HSTS_INCLUDE_SUBDOMAINS=True
+SECURE_HSTS_PRELOAD=True
 DATABASE_URL=postgres://...
 AI_PROVIDER=mock
 AI_API_KEY=
+OCR_PROVIDER=disabled
+PROCESSING_MODE=thread
+AUTO_PROCESS_ON_UPLOAD=true
 ONE_C_BASE_URL=
 ONE_C_USERNAME=
 ONE_C_PASSWORD=
 ```
 
-Run `python manage.py collectstatic --noinput` during deployment.
+Deployment commands:
 
-## Future Improvements
+- Release: `python manage.py migrate --noinput`
+- Build/static: `python manage.py collectstatic --noinput`
+- Start: `gunicorn doc2onec.wsgi:application`
 
-- Real OCR for images and scanned PDFs
-- Real LLM extraction with structured outputs and prompt versioning
-- 1C OData/API integration after endpoint and credential discovery
-- Accounting review and correction flow
-- Role-based access control
-- API keys for machine-to-machine ingestion
-- S3 or MinIO file storage
-- Replace MVP thread processing with Celery/Redis for production-scale large files
-- Audit log and retention policy for production use
+## Future Stages
+
+- Replace MVP thread processing with Celery + Redis
+- Add true 1C OData/API integration
+- Add richer review guidance and field suggestions
+- Add authentication/roles for production use
+- Add S3/MinIO media storage
+- Add audit logging and retention policy
+- Add machine-to-machine ingestion API keys

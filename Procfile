@@ -1,1 +1,2 @@
-﻿web: gunicorn doc2onec.wsgi:application
+release: python manage.py migrate --noinput
+web: gunicorn doc2onec.wsgi:application

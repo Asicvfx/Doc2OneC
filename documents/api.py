@@ -1,6 +1,6 @@
 from django.db.models import Q
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiExample, OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -70,11 +70,14 @@ DOCUMENT_LIST_PARAMETERS = [
     retrieve=extend_schema(responses={200: DocumentDetailSerializer}),
 )
 class DocumentViewSet(viewsets.ModelViewSet):
-    queryset = Document.objects.prefetch_related("logs").all()
+    queryset = Document.objects.all()
     parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        if self.action == "retrieve":
+            queryset = queryset.prefetch_related("logs")
+
         status_value = self.request.query_params.get("status")
         file_type = self.request.query_params.get("file_type")
         search = self.request.query_params.get("search")
@@ -85,7 +88,7 @@ class DocumentViewSet(viewsets.ModelViewSet):
         if file_type in Document.FileType.values:
             queryset = queryset.filter(file_type=file_type)
         if search:
-            queryset = queryset.filter(title__icontains=search) | queryset.filter(extracted_text__icontains=search)
+            queryset = queryset.filter(Q(title__icontains=search) | Q(extracted_text__icontains=search))
         if ordering in {"created_at", "-created_at", "updated_at", "-updated_at", "title", "-title"}:
             queryset = queryset.order_by(ordering)
         return queryset
@@ -131,10 +134,10 @@ class DocumentViewSet(viewsets.ModelViewSet):
             OpenApiExample(
                 "Reviewed worklog",
                 value={
-                    "employee_name": "Иванов Иван",
+                    "employee_name": "Ivanov Ivan",
                     "date": "2026-07-06",
-                    "object": "Объект №1",
-                    "work_type": "Электромонтажные работы",
+                    "object": "Object No. 1",
+                    "work_type": "Electrical installation work",
                     "hours": "7.5",
                     "comment": "Reviewed manually",
                 },
@@ -177,5 +180,3 @@ class DocumentViewSet(viewsets.ModelViewSet):
             "validation_errors": document.validation_errors,
             "processing_issue": get_processing_issue_payload(document),
         }
-
-

@@ -11,12 +11,17 @@ env = environ.Env(
     OCR_TIMEOUT=(float, 30.0),
     OCR_MAX_PDF_PAGES=(int, 3),
     AUTO_PROCESS_ON_UPLOAD=(bool, True),
+    SECURE_SSL_REDIRECT=(bool, False),
+    SECURE_HSTS_SECONDS=(int, 0),
+    SECURE_HSTS_INCLUDE_SUBDOMAINS=(bool, False),
+    SECURE_HSTS_PRELOAD=(bool, False),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY", default="").strip() or "dev-only-doc2onec-secret-key"
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -100,6 +105,10 @@ OCR_TIMEOUT = env("OCR_TIMEOUT")
 OCR_MAX_PDF_PAGES = env("OCR_MAX_PDF_PAGES")
 PROCESSING_MODE = env("PROCESSING_MODE", default="thread")
 AUTO_PROCESS_ON_UPLOAD = env("AUTO_PROCESS_ON_UPLOAD")
+SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT")
+SECURE_HSTS_SECONDS = env("SECURE_HSTS_SECONDS")
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env("SECURE_HSTS_INCLUDE_SUBDOMAINS")
+SECURE_HSTS_PRELOAD = env("SECURE_HSTS_PRELOAD")
 ONE_C_BASE_URL = env("ONE_C_BASE_URL", default="")
 ONE_C_USERNAME = env("ONE_C_USERNAME", default="")
 ONE_C_PASSWORD = env("ONE_C_PASSWORD", default="")
@@ -125,3 +134,10 @@ SPECTACULAR_SETTINGS = {
         "displayOperationId": True,
     },
 }
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "same-origin"

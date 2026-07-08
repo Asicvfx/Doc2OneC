@@ -622,3 +622,15 @@ class DocumentTrackingUxTests(DemoDirectoryMixin, TestCase):
         self.assertContains(active_response, "http-equiv=\"refresh\"")
         self.assertContains(ready_response, "Ready watch")
         self.assertNotContains(ready_response, "http-equiv=\"refresh\"")
+
+class DirectoryApiTests(DemoDirectoryMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+
+    def test_employee_directory_api_supports_search(self):
+        response = self.client.get('/api/employees/?search=EMP-001')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['external_1c_id'], 'EMP-001')

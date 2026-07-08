@@ -1,4 +1,4 @@
-﻿from rest_framework import serializers, viewsets
+from rest_framework import filters, serializers, viewsets
 
 from .models import Employee, WorkObject, WorkType
 
@@ -24,16 +24,19 @@ class WorkTypeSerializer(serializers.ModelSerializer):
 class EmployeeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
+    filter_backends = [filters.SearchFilter]
     search_fields = ["full_name", "external_1c_id"]
 
 
 class WorkObjectViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = WorkObject.objects.all()
     serializer_class = WorkObjectSerializer
+    filter_backends = [filters.SearchFilter]
     search_fields = ["name", "external_1c_id"]
 
 
 class WorkTypeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = WorkType.objects.all()
     serializer_class = WorkTypeSerializer
+    filter_backends = [filters.SearchFilter]
     search_fields = ["name", "external_1c_id"]

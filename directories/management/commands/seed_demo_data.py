@@ -8,42 +8,44 @@ from directories.models import Employee, WorkObject, WorkType
 
 
 SAMPLE_TEXT = (
-    "Иванов Иван 2026-07-06 Объект №1 "
-    "Электромонтажные работы 8 часов Монтаж кабеля"
+    "\u0418\u0432\u0430\u043d\u043e\u0432 \u0418\u0432\u0430\u043d 2026-07-06 \u041e\u0431\u044a\u0435\u043a\u0442 \u21161 "
+    "\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043c\u043e\u043d\u0442\u0430\u0436\u043d\u044b\u0435 \u0440\u0430\u0431\u043e\u0442\u044b 8 \u0447\u0430\u0441\u043e\u0432 \u041c\u043e\u043d\u0442\u0430\u0436 \u043a\u0430\u0431\u0435\u043b\u044f"
 )
+
+EMPLOYEES = [
+    ("\u0418\u0432\u0430\u043d\u043e\u0432 \u0418\u0432\u0430\u043d", "EMP-001"),
+    ("\u041f\u0435\u0442\u0440\u043e\u0432 \u0421\u0435\u0440\u0433\u0435\u0439", "EMP-002"),
+    ("\u0421\u0438\u0434\u043e\u0440\u043e\u0432 \u0410\u043b\u0435\u043a\u0441\u0435\u0439", "EMP-003"),
+]
+
+WORK_OBJECTS = [
+    ("\u041e\u0431\u044a\u0435\u043a\u0442 \u21161", "OBJ-001"),
+    ("\u041e\u0431\u044a\u0435\u043a\u0442 \u21162", "OBJ-002"),
+    ("\u0410\u0441\u0442\u0430\u043d\u0430-1", "OBJ-003"),
+]
+
+WORK_TYPES = [
+    ("\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043c\u043e\u043d\u0442\u0430\u0436\u043d\u044b\u0435 \u0440\u0430\u0431\u043e\u0442\u044b", "WT-001"),
+    ("\u041c\u043e\u043d\u0442\u0430\u0436 \u043a\u0430\u0431\u0435\u043b\u044f", "WT-002"),
+    ("\u0422\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u043e\u0431\u0441\u043b\u0443\u0436\u0438\u0432\u0430\u043d\u0438\u0435", "WT-003"),
+]
 
 
 class Command(BaseCommand):
     help = "Seed demo directories and sample documents for Doc2OneC."
 
     def handle(self, *args, **options):
-        employees = [
-            ("Иванов Иван", "EMP-001"),
-            ("Петров Сергей", "EMP-002"),
-            ("Сидоров Алексей", "EMP-003"),
-        ]
-        work_objects = [
-            ("Объект №1", "OBJ-001"),
-            ("Объект №2", "OBJ-002"),
-            ("Астана-1", "OBJ-003"),
-        ]
-        work_types = [
-            ("Электромонтажные работы", "WT-001"),
-            ("Монтаж кабеля", "WT-002"),
-            ("Техническое обслуживание", "WT-003"),
-        ]
-
-        for full_name, external_id in employees:
+        for full_name, external_id in EMPLOYEES:
             Employee.objects.update_or_create(
                 full_name=full_name,
                 defaults={"external_1c_id": external_id, "is_active": True},
             )
-        for name, external_id in work_objects:
+        for name, external_id in WORK_OBJECTS:
             WorkObject.objects.update_or_create(
                 name=name,
                 defaults={"external_1c_id": external_id, "is_active": True},
             )
-        for name, external_id in work_types:
+        for name, external_id in WORK_TYPES:
             WorkType.objects.update_or_create(
                 name=name,
                 defaults={"external_1c_id": external_id, "is_active": True},
@@ -61,12 +63,12 @@ class Command(BaseCommand):
             writer.writeheader()
             writer.writerow(
                 {
-                    "employee_name": "Иванов Иван",
+                    "employee_name": EMPLOYEES[0][0],
                     "date": "2026-07-06",
-                    "object": "Объект №1",
-                    "work_type": "Электромонтажные работы",
-                    "hours": "8 часов",
-                    "comment": "Монтаж кабеля",
+                    "object": WORK_OBJECTS[0][0],
+                    "work_type": WORK_TYPES[0][0],
+                    "hours": "8 \u0447\u0430\u0441\u043e\u0432",
+                    "comment": WORK_TYPES[1][0],
                 }
             )
 
@@ -81,12 +83,12 @@ class Command(BaseCommand):
             sheet.append(["employee_name", "date", "object", "work_type", "hours", "comment"])
             sheet.append(
                 [
-                    "Иванов Иван",
+                    EMPLOYEES[0][0],
                     "2026-07-06",
-                    "Объект №1",
-                    "Электромонтажные работы",
-                    "8 часов",
-                    "Монтаж кабеля",
+                    WORK_OBJECTS[0][0],
+                    WORK_TYPES[0][0],
+                    "8 \u0447\u0430\u0441\u043e\u0432",
+                    WORK_TYPES[1][0],
                 ]
             )
             workbook.save(sample_dir / "sample_worklog.xlsx")
