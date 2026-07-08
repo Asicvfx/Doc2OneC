@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from io import BytesIO
+from io import BytesIO, StringIO
 from unittest.mock import patch
 
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management import call_command
 from django.core.files import File
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -672,3 +673,45 @@ class ProcessingModeTests(DemoDirectoryMixin, TestCase):
         document.refresh_from_db()
 
         self.assertEqual(document.status, Document.Status.UPLOADED)
+
+class ProcessingRuntimeTests(DemoDirectoryMixin, TestCase):
+    @override_settings(PROCESSING_MODE="thread", AUTO_PROCESS_ON_UPLOAD=True)
+    def test_runtime_status_endpoint_reports_thread_mode(self):
+        response = self.client.get(reverse("processing-runtime-status"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["mode"], "thread")
+        self.assertEqual(payload["worker_status"], "not_required")
+        self.assertTrue(payload["auto_process_on_upload"])
+
+    @override_settings(PROCESSING_MODE="celery", CELERY_BROKER_URL="", CELERY_TASK_ALWAYS_EAGER=False)
+    def test_runtime_status_endpoint_reports_celery_misconfiguration(self):
+        response = self.client.get(reverse("processing-runtime-status"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["mode"], "celery")
+        self.assertEqual(payload["worker_status"], "misconfigured")
+        self.assertIn("CELERY_BROKER_URL", payload["worker_detail"])
+
+    @override_settings(PROCESSING_MODE="celery", CELERY_TASK_ALWAYS_EAGER=True)
+    def test_runtime_check_command_prints_json_status(self):
+        stdout = StringIO()
+
+        call_command("check_processing_runtime", stdout=stdout)
+        payload = json.loads(stdout.getvalue())
+
+        self.assertEqual(payload["mode"], "celery")
+        self.assertEqual(payload["worker_status"], "eager")
+
+
+class DashboardRuntimeTests(DemoDirectoryMixin, TestCase):
+    @override_settings(PROCESSING_MODE="thread")
+    def test_dashboard_shows_processing_backend_panel(self):
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Processing backend")
+        self.assertContains(response, "Mode: thread")
+        self.assertContains(response, "Open runtime JSON")

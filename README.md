@@ -170,6 +170,22 @@ Start only Django:
 python manage.py runserver
 ```
 
+### Smoke check for runtime status
+
+Once the app is running, you can verify the processing backend in two ways:
+
+1. Browser/API check:
+   - Open `http://127.0.0.1:8000/api/runtime/processing/`
+   - In `thread` mode you should see `worker_status: not_required`
+   - In `celery` mode with a live worker you should see `worker_status: online`
+
+2. CLI check:
+
+```bash
+python manage.py check_processing_runtime
+```
+
+This prints JSON with the current mode, broker configuration, eager flag, and worker visibility.
 ### Mode 2: Real Celery worker locally
 
 Use this when you want to test the production-style background path.

@@ -1,8 +1,10 @@
 from django.db.models import Count
+from django.http import JsonResponse
 from django.shortcuts import render
 
 from documents.models import Document
 from documents.services.processing_jobs import ACTIVE_PROCESSING_STATUSES
+from documents.services.processing_runtime import get_processing_runtime_status
 
 
 REFRESH_SECONDS = 5
@@ -14,6 +16,7 @@ def dashboard(request):
         for row in Document.objects.values("status").annotate(count=Count("id"))
     }
     active_processing_count = sum(status_counts.get(status, 0) for status in ACTIVE_PROCESSING_STATUSES)
+    runtime_status = get_processing_runtime_status()
     stat_cards = [
         ("Total documents", Document.objects.count(), "bg-body"),
         ("Uploaded", status_counts.get(Document.Status.UPLOADED, 0), "bg-body"),
@@ -31,5 +34,11 @@ def dashboard(request):
         "active_processing_count": active_processing_count,
         "has_active_processing": active_processing_count > 0,
         "refresh_seconds": REFRESH_SECONDS,
+        "runtime_status": runtime_status,
     }
     return render(request, "core/dashboard.html", context)
+
+
+def processing_runtime_status_view(request):
+    status = get_processing_runtime_status()
+    return JsonResponse(status.as_dict())

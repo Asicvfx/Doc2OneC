@@ -26,6 +26,34 @@
   {% endfor %}
 </section>
 
+<section class="content-panel mb-4">
+  <div class="d-flex justify-content-between align-items-start gap-3">
+    <div>
+      <h2 class="h5 mb-1">Processing backend</h2>
+      <p class="text-muted mb-2">Current runtime mode and worker visibility for manual smoke checks.</p>
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="badge text-bg-dark">Mode: {{ runtime_status.mode }}</span>
+        {% if runtime_status.worker_status == "online" %}
+          <span class="badge text-bg-success">Worker online</span>
+        {% elif runtime_status.worker_status == "eager" %}
+          <span class="badge text-bg-warning">Eager mode</span>
+        {% elif runtime_status.worker_status == "not_required" %}
+          <span class="badge text-bg-secondary">Worker not required</span>
+        {% else %}
+          <span class="badge text-bg-danger">{{ runtime_status.worker_status|title }}</span>
+        {% endif %}
+        {% if runtime_status.auto_process_on_upload %}
+          <span class="badge text-bg-primary">Auto-process on upload</span>
+        {% else %}
+          <span class="badge text-bg-light">Manual process trigger</span>
+        {% endif %}
+      </div>
+      <p class="mb-0">{{ runtime_status.worker_detail }}</p>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'processing-runtime-status' %}" target="_blank" rel="noopener">Open runtime JSON</a>
+  </div>
+</section>
+
 {% if has_active_processing %}
   <section class="live-status-banner mb-4">
     <div>

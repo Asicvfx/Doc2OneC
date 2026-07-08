@@ -1,11 +1,11 @@
-﻿from django.conf import settings
+from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
-from core.views import dashboard
+from core.views import dashboard, processing_runtime_status_view
 from directories.api import EmployeeViewSet, WorkObjectViewSet, WorkTypeViewSet
 from documents.api import DocumentViewSet
 
@@ -21,6 +21,7 @@ urlpatterns = [
     path("", dashboard, name="dashboard"),
     path("documents/", include("documents.urls")),
     path("api/", include(router.urls)),
+    path("api/runtime/processing/", processing_runtime_status_view, name="processing-runtime-status"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
 ]
