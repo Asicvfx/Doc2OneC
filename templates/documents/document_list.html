@@ -6,12 +6,31 @@
 {% if has_active_processing %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
 <section class="page-heading">
   <div>
+    <div class="page-kicker">Document operations</div>
     <h1 class="h3 mb-1">Documents</h1>
     <p class="text-muted mb-0">Uploaded employee work reports and their 1C readiness status.</p>
   </div>
   <a class="btn btn-primary" href="{% url 'documents:upload' %}">
     <i class="bi bi-cloud-arrow-up me-1"></i>Upload document
   </a>
+</section>
+
+<section class="insight-grid mb-4">
+  <div class="insight-card">
+    <div class="hero-side-label mb-2">Visible records</div>
+    <div class="insight-card-value">{{ page.paginator.count }}</div>
+    <p class="insight-card-copy">Documents matching the current filters.</p>
+  </div>
+  <div class="insight-card">
+    <div class="hero-side-label mb-2">Status scope</div>
+    <div class="insight-card-value">{% if selected_status %}1{% else %}All{% endif %}</div>
+    <p class="insight-card-copy">{% if selected_status %}Filtered to a single operational state.{% else %}Viewing every document state in the workspace.{% endif %}</p>
+  </div>
+  <div class="insight-card">
+    <div class="hero-side-label mb-2">Search term</div>
+    <div class="insight-card-value">{% if query %}1{% else %}0{% endif %}</div>
+    <p class="insight-card-copy">{% if query %}Search filter is active for this list.{% else %}No text search filter is active.{% endif %}</p>
+  </div>
 </section>
 
 {% if has_active_processing %}
@@ -25,13 +44,19 @@
 {% endif %}
 
 <section class="content-panel mb-4">
-  <form class="row g-2 align-items-end" method="get">
-    <div class="col-md-6">
-      <label class="form-label small text-muted" for="q">Search</label>
+  <div class="panel-header">
+    <div>
+      <h2 class="panel-title">Filters</h2>
+      <p class="panel-copy">Search by title or extracted text, then narrow the list by status.</p>
+    </div>
+  </div>
+  <form class="filter-grid" method="get">
+    <div>
+      <label class="form-label" for="q">Search</label>
       <input id="q" class="form-control" type="search" name="q" value="{{ query }}" placeholder="Title or extracted text">
     </div>
-    <div class="col-md-4">
-      <label class="form-label small text-muted" for="status">Status</label>
+    <div>
+      <label class="form-label" for="status">Status</label>
       <select id="status" class="form-select" name="status">
         <option value="">All statuses</option>
         {% for value, label in status_choices %}
@@ -39,7 +64,7 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-2 d-grid">
+    <div class="d-grid align-self-end">
       <button class="btn btn-outline-primary" type="submit">
         <i class="bi bi-funnel me-1"></i>Filter
       </button>
@@ -48,34 +73,47 @@
 </section>
 
 <section class="content-panel">
+  <div class="panel-header">
+    <div>
+      <h2 class="panel-title">Document register</h2>
+      <p class="panel-copy">Operational list of uploaded files and their current processing state.</p>
+    </div>
+  </div>
   {% if page.object_list %}
-    <div class="table-responsive">
-      <table class="table align-middle">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>File type</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for document in page.object_list %}
+    <div class="table-wrap">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
             <tr>
-              <td class="fw-semibold">{{ document.title }}</td>
-              <td>{{ document.file_type|upper }}</td>
-              <td>{% include "partials/status_badge.html" with document=document %}</td>
-              <td>{{ document.created_at|date:"Y-m-d H:i" }}</td>
-              <td class="text-end">
-                <a class="btn btn-sm btn-outline-primary" href="{% url 'documents:detail' document.pk %}">
-                  <i class="bi bi-eye me-1"></i>Open
-                </a>
-              </td>
+              <th>Title</th>
+              <th>File type</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th class="text-end">Actions</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for document in page.object_list %}
+              <tr>
+                <td>
+                  <div class="doc-title">
+                    <span class="fw-semibold">{{ document.title }}</span>
+                    <small>Document #{{ document.pk }}</small>
+                  </div>
+                </td>
+                <td><span class="doc-meta-pill"><i class="bi bi-file-earmark-text"></i>{{ document.file_type|upper }}</span></td>
+                <td>{% include "partials/status_badge.html" with document=document %}</td>
+                <td>{{ document.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'documents:detail' document.pk %}">
+                    <i class="bi bi-eye me-1"></i>Open
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
     {% if page.has_other_pages %}
       <nav class="pt-3">
@@ -93,7 +131,8 @@
   {% else %}
     <div class="empty-state">
       <i class="bi bi-inboxes"></i>
-      <p class="fw-semibold mb-2">No matching documents</p>
+      <div class="empty-state-title">No matching documents</div>
+      <p class="mb-2">Try clearing the filters or upload a new file to populate the register.</p>
       <a class="btn btn-primary btn-sm" href="{% url 'documents:upload' %}">Upload document</a>
     </div>
   {% endif %}

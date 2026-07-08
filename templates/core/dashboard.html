@@ -4,34 +4,58 @@
 
 {% block content %}
 {% if has_active_processing %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
-<section class="page-heading">
-  <div>
-    <p class="text-uppercase text-muted small fw-semibold mb-1">Doc2OneC</p>
-    <h1 class="h3 mb-2">Employee worklog processing for 1C</h1>
-    <p class="text-muted mb-0">AI-assisted document processing platform for preparing employee worklog data for 1C.</p>
+<section class="hero-panel mb-4">
+  <div class="hero-grid">
+    <div>
+      <div class="page-kicker">Doc2OneC</div>
+      <h1 class="hero-title">Employee worklog processing for 1C</h1>
+      <p class="hero-copy mb-0">AI-assisted document processing platform for preparing employee worklog data for 1C. The demo is structured like an internal operations workspace: upload, parse, validate, review, and export with visible processing health.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="{% url 'documents:upload' %}">
+          <i class="bi bi-cloud-arrow-up me-1"></i>Upload document
+        </a>
+        <a class="btn btn-outline-secondary" href="{% url 'documents:list' %}">
+          <i class="bi bi-folder2-open me-1"></i>Open queue
+        </a>
+      </div>
+    </div>
+    <div class="hero-side-card">
+      <div>
+        <div class="hero-side-label">Operations snapshot</div>
+        <div class="hero-side-value">{{ stat_cards.0.1 }}</div>
+      </div>
+      <div class="hero-side-list">
+        <div class="hero-side-item"><i class="bi bi-check2-circle"></i><span>Validation and review workflow built in</span></div>
+        <div class="hero-side-item"><i class="bi bi-activity"></i><span>Runtime visibility for processing mode and worker health</span></div>
+        <div class="hero-side-item"><i class="bi bi-file-earmark-code"></i><span>Structured JSON and CSV export for 1C handoff</span></div>
+      </div>
+    </div>
   </div>
-  <a class="btn btn-primary" href="{% url 'documents:upload' %}">
-    <i class="bi bi-cloud-arrow-up me-1"></i>Upload document
-  </a>
 </section>
 
 <section class="row g-3 mb-4">
   {% for label, value, color in stat_cards %}
-    <div class="col-6 col-md-4 col-xl">
+    <div class="col-12 col-sm-6 col-xl">
       <div class="metric-card {{ color }}">
-        <div class="text-muted small">{{ label }}</div>
+        <div class="metric-label">{{ label }}</div>
         <div class="metric-value">{{ value }}</div>
+        <div class="metric-note">Operational document count</div>
       </div>
     </div>
   {% endfor %}
 </section>
 
 <section class="content-panel mb-4">
-  <div class="d-flex justify-content-between align-items-start gap-3">
+  <div class="runtime-layout">
     <div>
-      <h2 class="h5 mb-1">Processing backend</h2>
-      <p class="text-muted mb-2">Current runtime mode and worker visibility for manual smoke checks.</p>
-      <div class="d-flex flex-wrap gap-2 mb-2">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Processing backend</h2>
+          <p class="panel-copy">Current runtime mode and worker visibility for manual smoke checks.</p>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'processing-runtime-status' %}" target="_blank" rel="noopener">Open runtime JSON</a>
+      </div>
+      <div class="status-ribbon mb-3">
         <span class="badge text-bg-dark">Mode: {{ runtime_status.mode }}</span>
         {% if runtime_status.worker_status == "online" %}
           <span class="badge text-bg-success">Worker online</span>
@@ -45,7 +69,7 @@
         {% if runtime_status.storage_shared %}
           <span class="badge text-bg-success">Shared storage: {{ runtime_status.storage_backend|upper }}</span>
         {% else %}
-          <span class="badge text-bg-light text-dark border">Local storage: {{ runtime_status.storage_backend|upper }}</span>
+          <span class="badge text-bg-light">Local storage: {{ runtime_status.storage_backend|upper }}</span>
         {% endif %}
         {% if runtime_status.local_worker_override %}
           <span class="badge text-bg-warning text-dark">Local worker override</span>
@@ -58,7 +82,11 @@
       </div>
       <p class="mb-0">{{ runtime_status.worker_detail }}</p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" href="{% url 'processing-runtime-status' %}" target="_blank" rel="noopener">Open runtime JSON</a>
+    <div class="insight-card">
+      <div class="hero-side-label mb-2">Control surface</div>
+      <div class="insight-card-value">{{ refresh_seconds }}s</div>
+      <p class="insight-card-copy">Auto-refresh interval while there are active processing jobs in view.</p>
+    </div>
   </div>
 </section>
 
@@ -73,55 +101,61 @@
 {% endif %}
 
 <section class="workflow-strip mb-4">
-  <span>Upload</span>
-  <i class="bi bi-arrow-right"></i>
-  <span>Parse/OCR</span>
-  <i class="bi bi-arrow-right"></i>
-  <span>AI extraction</span>
-  <i class="bi bi-arrow-right"></i>
-  <span>JSON</span>
-  <i class="bi bi-arrow-right"></i>
-  <span>Validation</span>
-  <i class="bi bi-arrow-right"></i>
-  <span>Export for 1C</span>
+  <div class="workflow-step"><span class="workflow-step-index">1</span><span class="workflow-step-label">Upload</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">2</span><span class="workflow-step-label">Parse/OCR</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">3</span><span class="workflow-step-label">AI extraction</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">4</span><span class="workflow-step-label">JSON</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">5</span><span class="workflow-step-label">Validation</span></div>
+  <div class="workflow-step"><span class="workflow-step-index">6</span><span class="workflow-step-label">Export for 1C</span></div>
 </section>
 
 <section class="content-panel">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="h5 mb-0">Recent documents</h2>
+  <div class="panel-header">
+    <div>
+      <h2 class="panel-title">Recent documents</h2>
+      <p class="panel-copy">Latest uploads and their current readiness state.</p>
+    </div>
     <a class="btn btn-outline-secondary btn-sm" href="{% url 'documents:list' %}">View all</a>
   </div>
   {% if recent_documents %}
-    <div class="table-responsive">
-      <table class="table align-middle">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th class="text-end">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for document in recent_documents %}
+    <div class="table-wrap">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
             <tr>
-              <td class="fw-semibold">{{ document.title }}</td>
-              <td>{{ document.file_type|upper }}</td>
-              <td>{% include "partials/status_badge.html" with document=document %}</td>
-              <td>{{ document.created_at|date:"Y-m-d H:i" }}</td>
-              <td class="text-end">
-                <a class="btn btn-sm btn-outline-primary" href="{% url 'documents:detail' document.pk %}">Open</a>
-              </td>
+              <th>Title</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th class="text-end">Action</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for document in recent_documents %}
+              <tr>
+                <td>
+                  <div class="doc-title">
+                    <span class="fw-semibold">{{ document.title }}</span>
+                    <small>Processing record #{{ document.pk }}</small>
+                  </div>
+                </td>
+                <td><span class="doc-meta-pill"><i class="bi bi-file-earmark-text"></i>{{ document.file_type|upper }}</span></td>
+                <td>{% include "partials/status_badge.html" with document=document %}</td>
+                <td>{{ document.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'documents:detail' document.pk %}">Open</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   {% else %}
     <div class="empty-state">
       <i class="bi bi-file-earmark-arrow-up"></i>
-      <p class="mb-2 fw-semibold">No documents yet</p>
+      <div class="empty-state-title">No documents yet</div>
+      <p class="mb-2">Start by uploading a worklog file to see the full extraction and review flow.</p>
       <a class="btn btn-primary btn-sm" href="{% url 'documents:upload' %}">Upload first document</a>
     </div>
   {% endif %}

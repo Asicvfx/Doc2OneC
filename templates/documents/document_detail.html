@@ -6,9 +6,11 @@
 {% if processing_active %}<meta http-equiv="refresh" content="5">{% endif %}
 <section class="page-heading">
   <div>
+    <div class="page-kicker">Document workspace</div>
     <h1 class="h3 mb-1">{{ document.title }}</h1>
-    <div class="d-flex gap-2 align-items-center">
+    <div class="detail-header-meta">
       {% include "partials/status_badge.html" with document=document %}
+      <span class="doc-meta-pill"><i class="bi bi-file-earmark-text"></i>{{ document.file_type|upper }}</span>
       <span class="text-muted small">Created {{ document.created_at|date:"Y-m-d H:i" }}</span>
     </div>
   </div>
@@ -17,9 +19,9 @@
   </a>
 </section>
 
-<div class="row g-4">
-  <aside class="col-lg-4">
-    <section class="next-step next-step-{{ next_step.variant }} mb-4">
+<div class="detail-layout">
+  <aside class="detail-sidebar">
+    <section class="next-step next-step-{{ next_step.variant }}">
       <div class="next-step-icon"><i class="bi {{ next_step.icon }}"></i></div>
       <div>
         <div class="small text-uppercase fw-semibold mb-1">Next step</div>
@@ -28,8 +30,13 @@
       </div>
     </section>
 
-    <section class="content-panel mb-4">
-      <h2 class="h5 mb-3">Document info</h2>
+    <section class="content-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Document info</h2>
+          <p class="panel-copy">Source file metadata and operator actions.</p>
+        </div>
+      </div>
       <dl class="detail-list">
         <dt>File type</dt>
         <dd>{{ document.file_type|upper }}</dd>
@@ -38,15 +45,15 @@
         <dt>Updated</dt>
         <dd>{{ document.updated_at|date:"Y-m-d H:i" }}</dd>
       </dl>
-      <div class="d-grid gap-2">
+      <div class="action-stack">
         <form method="post" action="{% url 'documents:process' document.pk %}">
           {% csrf_token %}
           {% if processing_active %}
-            <button class="btn btn-primary w-100" type="button" disabled>
+            <button class="btn btn-primary" type="button" disabled>
               <i class="bi bi-hourglass-split me-1"></i>Processing queued
             </button>
           {% else %}
-            <button class="btn btn-primary w-100" type="submit">
+            <button class="btn btn-primary" type="submit">
               {% if document.status == "failed" %}
                 <i class="bi bi-arrow-clockwise me-1"></i>Retry processing
               {% else %}
@@ -67,15 +74,15 @@
         <form method="post" action="{% url 'documents:mark_exported' document.pk %}">
           {% csrf_token %}
           {% if document.status == "exported" %}
-            <button class="btn btn-outline-dark w-100" type="button" disabled>
+            <button class="btn btn-outline-secondary" type="button" disabled>
               <i class="bi bi-check2-circle me-1"></i>Already exported
             </button>
           {% elif can_mark_exported %}
-            <button class="btn btn-outline-dark w-100" type="submit">
+            <button class="btn btn-outline-secondary" type="submit">
               <i class="bi bi-check2-circle me-1"></i>Mark as exported
             </button>
           {% else %}
-            <button class="btn btn-outline-dark w-100" type="button" disabled>
+            <button class="btn btn-outline-secondary" type="button" disabled>
               <i class="bi bi-lock me-1"></i>Export requires ready status
             </button>
           {% endif %}
@@ -84,14 +91,19 @@
     </section>
 
     <section class="content-panel">
-      <h2 class="h5 mb-3">Processing logs</h2>
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Processing logs</h2>
+          <p class="panel-copy">Timeline of pipeline events for this document.</p>
+        </div>
+      </div>
       {% if document.logs.all %}
         <ol class="timeline">
           {% for log in document.logs.all %}
             <li class="timeline-item timeline-{{ log.level }}">
               <div class="small text-muted">{{ log.created_at|date:"Y-m-d H:i:s" }}</div>
-              <div class="fw-semibold">{{ log.step }}</div>
-              <div>{{ log.message }}</div>
+              <div class="timeline-step">{{ log.step }}</div>
+              <div class="timeline-copy">{{ log.message }}</div>
             </li>
           {% endfor %}
         </ol>
@@ -101,7 +113,7 @@
     </section>
   </aside>
 
-  <section class="col-lg-8">
+  <section>
     {% if processing_issue %}
       <div class="content-panel mb-4 processing-issue-panel">
         <div class="processing-issue-heading mb-3">
@@ -122,10 +134,10 @@
     {% endif %}
 
     <div class="content-panel mb-4">
-      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+      <div class="panel-header">
         <div>
-          <h2 class="h5 mb-1">Validation</h2>
-          <p class="text-muted mb-0">Backend checks required fields, ranges, and directory matches.</p>
+          <h2 class="panel-title">Validation</h2>
+          <p class="panel-copy">Backend checks required fields, ranges, and directory matches.</p>
         </div>
         <a class="btn btn-outline-primary btn-sm" href="{% url 'documents:review' document.pk %}">
           <i class="bi bi-pencil-square me-1"></i>Edit data
@@ -158,7 +170,13 @@
     </div>
 
     <div class="content-panel mb-4">
-      <h2 class="h5 mb-3">Extracted text</h2>
+      <div class="code-panel-header">
+        <div>
+          <h2 class="panel-title mb-1">Extracted text</h2>
+          <p class="panel-copy">Source text prepared by parsing or OCR.</p>
+        </div>
+        <div class="code-panel-label"><i class="bi bi-file-text"></i>Raw text output</div>
+      </div>
       {% if document.extracted_text %}
         <pre class="code-block">{{ document.extracted_text }}</pre>
       {% else %}
@@ -167,7 +185,13 @@
     </div>
 
     <div class="content-panel">
-      <h2 class="h5 mb-3">Normalized JSON</h2>
+      <div class="code-panel-header">
+        <div>
+          <h2 class="panel-title mb-1">Normalized JSON</h2>
+          <p class="panel-copy">Stable structured payload prepared for validation and export.</p>
+        </div>
+        <div class="code-panel-label"><i class="bi bi-braces"></i>Structured output</div>
+      </div>
       <pre class="code-block">{{ normalized_json_pretty }}</pre>
     </div>
   </section>
