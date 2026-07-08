@@ -153,6 +153,20 @@ Open locally:
 - Swagger UI: http://127.0.0.1:8000/api/docs/
 - OpenAPI schema: http://127.0.0.1:8000/api/schema/
 
+## Shared Storage
+
+The project now supports two upload storage modes:
+
+- `filesystem` -> current local/default mode
+- `s3` -> shared object storage for cloud-safe uploads
+
+Main files:
+
+- `.env.s3.example`
+- `docs/shared_storage.md`
+
+Use `FILE_STORAGE_BACKEND=s3` when you want shared uploads for future web + worker deployments.
+
 ## Local Celery Bootstrap Files
 
 Useful files for local Redis + Celery setup:
@@ -353,7 +367,7 @@ Deployment commands:
 
 ## Future Stages
 
-- Add shared object storage for uploads, then switch Render deploys to web + worker + Key Value
+- Add safe web + worker deploy profile on top of shared object storage
 - Add true 1C OData/API integration
 - Add richer review guidance and field suggestions
 - Add authentication/roles for production use

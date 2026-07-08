@@ -9,3 +9,4 @@ staticfiles/
 .DS_Store
 schema.yml
 .env.celery.local
+.env.s3.local
